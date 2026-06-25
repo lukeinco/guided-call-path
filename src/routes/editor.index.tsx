@@ -44,7 +44,7 @@ function EditorList() {
     setBusy(true);
     const { data, error } = await supabase
       .from("scripts")
-      .insert({ org_id: auth.orgId, name: "Untitled script", version: 1, is_active: false, definition: emptyDefinition() })
+      .insert({ org_id: auth.orgId, name: "Untitled script", version: 1, is_active: false, definition: emptyDefinition() as unknown as never })
       .select("id").single();
     setBusy(false);
     if (error) return alert(error.message);
@@ -56,7 +56,7 @@ function EditorList() {
     setBusy(true);
     const { data, error } = await supabase
       .from("scripts")
-      .insert({ org_id: auth.orgId, name: SAMPLE_SCRIPT_NAME, version: 1, is_active: true, definition: sampleDefinition })
+      .insert({ org_id: auth.orgId, name: SAMPLE_SCRIPT_NAME, version: 1, is_active: true, definition: sampleDefinition as unknown as never })
       .select("id").single();
     setBusy(false);
     if (error) return alert(error.message);

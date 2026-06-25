@@ -33,7 +33,7 @@ function NavigatorPage() {
       const { data, error } = await supabase
         .from("scripts").select("id, name, definition").eq("is_active", true).order("name");
       if (error) throw error;
-      return data as ActiveScript[];
+      return data as unknown as ActiveScript[];
     },
   });
 

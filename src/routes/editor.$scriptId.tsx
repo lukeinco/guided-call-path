@@ -90,7 +90,7 @@ function ScriptEditor() {
         if (error) throw error;
         navigate({ to: "/editor/$scriptId", params: { scriptId: inserted.id }, replace: true });
       } else {
-        const { error } = await supabase.from("scripts").update({ name, definition }).eq("id", scriptId);
+        const { error } = await supabase.from("scripts").update({ name, definition: definition as unknown as never }).eq("id", scriptId);
         if (error) throw error;
       }
       setSavedAt(new Date().toLocaleTimeString());
