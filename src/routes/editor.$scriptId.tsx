@@ -42,7 +42,7 @@ function ScriptEditor() {
   useEffect(() => {
     if (data) {
       setName(data.name);
-      setDefinition(data.definition as ScriptDefinition);
+      setDefinition(data.definition as unknown as ScriptDefinition);
     }
   }, [data]);
 
@@ -85,7 +85,7 @@ function ScriptEditor() {
         await supabase.from("scripts").update({ is_active: false }).eq("name", name);
         const { data: inserted, error } = await supabase
           .from("scripts")
-          .insert({ org_id: auth.orgId, name, version: nextVersion, is_active: true, definition })
+          .insert({ org_id: auth.orgId, name, version: nextVersion, is_active: true, definition: definition as unknown as never })
           .select("id").single();
         if (error) throw error;
         navigate({ to: "/editor/$scriptId", params: { scriptId: inserted.id }, replace: true });
