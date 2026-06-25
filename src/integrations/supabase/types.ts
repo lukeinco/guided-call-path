@@ -14,16 +14,225 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      call_runs: {
+        Row: {
+          caller_id: string
+          ended_at: string | null
+          id: string
+          org_id: string
+          scenario: Database["public"]["Enums"]["entry_scenario"]
+          script_id: string
+          started_at: string
+        }
+        Insert: {
+          caller_id: string
+          ended_at?: string | null
+          id?: string
+          org_id: string
+          scenario: Database["public"]["Enums"]["entry_scenario"]
+          script_id: string
+          started_at?: string
+        }
+        Update: {
+          caller_id?: string
+          ended_at?: string | null
+          id?: string
+          org_id?: string
+          scenario?: Database["public"]["Enums"]["entry_scenario"]
+          script_id?: string
+          started_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_runs_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_runs_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events: {
+        Row: {
+          created_at: string
+          id: string
+          org_id: string
+          response_label: string | null
+          run_id: string
+          step_id: string
+          type: Database["public"]["Enums"]["event_type"]
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          org_id: string
+          response_label?: string | null
+          run_id: string
+          step_id: string
+          type: Database["public"]["Enums"]["event_type"]
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          org_id?: string
+          response_label?: string | null
+          run_id?: string
+          step_id?: string
+          type?: Database["public"]["Enums"]["event_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "orgs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "call_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orgs: {
+        Row: {
+          created_at: string
+          id: string
+          join_code: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          join_code?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          join_code?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          id: string
+          org_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          id: string
+          org_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          org_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "orgs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scripts: {
+        Row: {
+          created_at: string
+          definition: Json
+          id: string
+          is_active: boolean
+          name: string
+          org_id: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          definition?: Json
+          id?: string
+          is_active?: boolean
+          name: string
+          org_id: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          definition?: Json
+          id?: string
+          is_active?: boolean
+          name?: string
+          org_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scripts_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "orgs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      current_org: { Args: never; Returns: string }
+      gen_join_code: { Args: never; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "caller"
+      entry_scenario:
+        | "gatekeeper"
+        | "direct_contact"
+        | "no_name"
+        | "cell_vs_company"
+      event_type: "response_selected" | "off_script"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +359,15 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "caller"],
+      entry_scenario: [
+        "gatekeeper",
+        "direct_contact",
+        "no_name",
+        "cell_vs_company",
+      ],
+      event_type: ["response_selected", "off_script"],
+    },
   },
 } as const
