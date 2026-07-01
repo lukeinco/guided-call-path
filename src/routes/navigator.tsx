@@ -5,6 +5,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Check } from "lucide-react";
 import {
   type ScriptDefinition,
   type ScriptStep,
@@ -92,9 +97,23 @@ function NavigatorPage() {
     setPath([entry.id]);
   }
 
-  async function endCall() {
-    if (runId)
-      await supabase.from("call_runs").update({ ended_at: new Date().toISOString() }).eq("id", runId);
+  async function endCall(opts?: {
+    disposition?: string;
+    killed_by_objection_id?: string | null;
+    ended_on_step_id?: string | null;
+  }) {
+    if (runId) {
+      const update: {
+        ended_at: string;
+        disposition?: string;
+        killed_by_objection_id?: string | null;
+        ended_on_step_id?: string | null;
+      } = { ended_at: new Date().toISOString() };
+      if (opts?.disposition) update.disposition = opts.disposition;
+      if (opts?.killed_by_objection_id) update.killed_by_objection_id = opts.killed_by_objection_id;
+      if (opts?.ended_on_step_id) update.ended_on_step_id = opts.ended_on_step_id;
+      await supabase.from("call_runs").update(update).eq("id", runId);
+    }
     setRunId(null);
     setScenario(null);
     setPath([]);
@@ -275,7 +294,7 @@ function RunnerView({
   onResumeAt: (stepId: string) => void;
   onObjectionOpened: (step: ScriptStep, obj: ScriptObjection) => void;
   onNotAccounted: (step: ScriptStep, text: string) => void;
-  onEnd: () => void;
+  onEnd: (opts?: { disposition?: string; killed_by_objection_id?: string | null; ended_on_step_id?: string | null }) => void;
 }) {
   const currentId = path[path.length - 1];
   const current = stepsById.get(currentId);
@@ -290,6 +309,29 @@ function RunnerView({
   const [resumePicks, setResumePicks] = useState<ScriptStep[] | null>(null);
   const [notAccountedOpen, setNotAccountedOpen] = useState(false);
   const [notAccountedText, setNotAccountedText] = useState("");
+  const [endStage, setEndStage] = useState<"idle" | "confirming" | "dialog">("idle");
+  const [disposition, setDisposition] = useState<string>("");
+  const [killedByObjectionId, setKilledByObjectionId] = useState<string>("");
+  const [endedOnStepId, setEndedOnStepId] = useState<string | null>(null);
+
+  function beginEndCall() {
+    setDisposition("");
+    setKilledByObjectionId("");
+    setEndedOnStepId(currentId);
+    setEndStage("confirming");
+    setTimeout(() => setEndStage("dialog"), 550);
+  }
+
+  function submitDisposition() {
+    if (!disposition) return;
+    onEnd({
+      disposition,
+      ended_on_step_id: endedOnStepId,
+      killed_by_objection_id:
+        disposition === "objection_unbeat" ? killedByObjectionId || null : null,
+    });
+    setEndStage("idle");
+  }
 
   const relevantObjections = useMemo(() => {
     if (!current) return [];
@@ -545,12 +587,98 @@ function RunnerView({
             Response not accounted for
           </button>
         )}
-        <Button onClick={onEnd} variant="outline" className="rounded-none border-foreground">
+        <Button onClick={beginEndCall} variant="outline" className="rounded-none border-foreground">
           End call
         </Button>
       </div>
 
       <p className="mt-4 text-center text-[10px] text-muted-foreground">Script: {script.name}</p>
+
+      {endStage === "confirming" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full border border-iron text-iron">
+              <Check className="h-8 w-8" />
+            </div>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Call ended</p>
+          </div>
+        </div>
+      )}
+
+      <Dialog
+        open={endStage === "dialog"}
+        onOpenChange={(o) => {
+          if (!o) setEndStage("idle");
+        }}
+      >
+        <DialogContent className="rounded-none border-hairline sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-2xl">How'd it go?</DialogTitle>
+            <DialogDescription className="font-mono text-[11px] uppercase tracking-[0.18em]">
+              Pick one — ties this call to where in the script it ended.
+            </DialogDescription>
+          </DialogHeader>
+
+          <RadioGroup value={disposition} onValueChange={setDisposition} className="mt-2 space-y-2">
+            {[
+              ["meeting_booked", "Meeting booked"],
+              ["callback_scheduled", "Callback scheduled"],
+              ["interested_no_commitment", "Interested — no commitment"],
+              ["objection_unbeat", "Not interested — objection I couldn't beat"],
+              ["not_a_fit", "Not interested — not a fit"],
+              ["gatekeeper_wall", "Gatekeeper wall (never reached the decision-maker)"],
+              ["no_answer", "No answer / voicemail"],
+              ["wrong_number", "Wrong number / bad data"],
+            ].map(([value, label]) => (
+              <div
+                key={value}
+                className="flex items-center gap-3 border border-hairline px-3 py-2 hover:border-foreground"
+              >
+                <RadioGroupItem value={value} id={`disp-${value}`} />
+                <Label htmlFor={`disp-${value}`} className="flex-1 cursor-pointer text-sm font-normal">
+                  {label}
+                </Label>
+              </div>
+            ))}
+          </RadioGroup>
+
+          {disposition === "objection_unbeat" && (
+            <div className="mt-2">
+              <label className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                Which objection?
+              </label>
+              <Select value={killedByObjectionId} onValueChange={setKilledByObjectionId}>
+                <SelectTrigger className="mt-1 rounded-none border-hairline">
+                  <SelectValue placeholder="Pick an objection" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allObjections.length === 0 && (
+                    <div className="px-3 py-2 text-xs text-muted-foreground">No objections authored.</div>
+                  )}
+                  {allObjections.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <DialogFooter className="mt-4">
+            <Button variant="ghost" className="rounded-none" onClick={() => setEndStage("idle")}>
+              Cancel
+            </Button>
+            <Button
+              onClick={submitDisposition}
+              disabled={!disposition || (disposition === "objection_unbeat" && !killedByObjectionId)}
+              className="rounded-none"
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
