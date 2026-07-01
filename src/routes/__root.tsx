@@ -90,6 +90,20 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function OrgGuard({ children }: { children: ReactNode }) {
+  const auth = useAuth();
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  useEffect(() => {
+    if (auth.loading || !auth.userId) return;
+    if (auth.role === "superadmin") return;
+    if (!auth.orgId && pathname !== "/join" && pathname !== "/auth") {
+      navigate({ to: "/join", replace: true });
+    }
+  }, [auth.loading, auth.userId, auth.orgId, auth.role, pathname, navigate]);
+  return <>{children}</>;
+}
+
 function RootComponent() {
   // Per-mount QueryClient to keep things simple and SPA-only.
   const [queryClient] = useState(() => new QueryClient({ defaultOptions: { queries: { staleTime: 30_000 } } }));
@@ -97,7 +111,9 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ActingOrgProvider>
-          <Outlet />
+          <OrgGuard>
+            <Outlet />
+          </OrgGuard>
         </ActingOrgProvider>
       </AuthProvider>
     </QueryClientProvider>
