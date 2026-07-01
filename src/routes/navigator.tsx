@@ -309,6 +309,29 @@ function RunnerView({
   const [resumePicks, setResumePicks] = useState<ScriptStep[] | null>(null);
   const [notAccountedOpen, setNotAccountedOpen] = useState(false);
   const [notAccountedText, setNotAccountedText] = useState("");
+  const [endStage, setEndStage] = useState<"idle" | "confirming" | "dialog">("idle");
+  const [disposition, setDisposition] = useState<string>("");
+  const [killedByObjectionId, setKilledByObjectionId] = useState<string>("");
+  const endedOnStepIdRef = useMemo(() => ({ id: currentId }), [currentId]);
+
+  function beginEndCall() {
+    setDisposition("");
+    setKilledByObjectionId("");
+    endedOnStepIdRef.id = currentId;
+    setEndStage("confirming");
+    setTimeout(() => setEndStage("dialog"), 550);
+  }
+
+  function submitDisposition() {
+    if (!disposition) return;
+    onEnd({
+      disposition,
+      ended_on_step_id: endedOnStepIdRef.id,
+      killed_by_objection_id:
+        disposition === "objection_unbeat" ? killedByObjectionId || null : null,
+    });
+    setEndStage("idle");
+  }
 
   const relevantObjections = useMemo(() => {
     if (!current) return [];
