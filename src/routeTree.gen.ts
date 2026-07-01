@@ -19,6 +19,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as EditorIndexRouteImport } from './routes/editor.index'
 import { Route as EditorScriptIdRouteImport } from './routes/editor.$scriptId'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as ApiPublicHooksWeeklyGapDigestRouteImport } from './routes/api/public/hooks/weekly-gap-digest'
 
 const SignalsRoute = SignalsRouteImport.update({
   id: '/signals',
@@ -70,6 +71,12 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/admin/users',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksWeeklyGapDigestRoute =
+  ApiPublicHooksWeeklyGapDigestRouteImport.update({
+    id: '/api/public/hooks/weekly-gap-digest',
+    path: '/api/public/hooks/weekly-gap-digest',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -82,6 +89,7 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AdminUsersRoute
   '/editor/$scriptId': typeof EditorScriptIdRoute
   '/editor/': typeof EditorIndexRoute
+  '/api/public/hooks/weekly-gap-digest': typeof ApiPublicHooksWeeklyGapDigestRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -93,6 +101,7 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersRoute
   '/editor/$scriptId': typeof EditorScriptIdRoute
   '/editor': typeof EditorIndexRoute
+  '/api/public/hooks/weekly-gap-digest': typeof ApiPublicHooksWeeklyGapDigestRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -106,6 +115,7 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/editor/$scriptId': typeof EditorScriptIdRoute
   '/editor/': typeof EditorIndexRoute
+  '/api/public/hooks/weekly-gap-digest': typeof ApiPublicHooksWeeklyGapDigestRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -120,6 +130,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/editor/$scriptId'
     | '/editor/'
+    | '/api/public/hooks/weekly-gap-digest'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -131,6 +142,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/editor/$scriptId'
     | '/editor'
+    | '/api/public/hooks/weekly-gap-digest'
   id:
     | '__root__'
     | '/'
@@ -143,6 +155,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/editor/$scriptId'
     | '/editor/'
+    | '/api/public/hooks/weekly-gap-digest'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -154,6 +167,7 @@ export interface RootRouteChildren {
   NavigatorRoute: typeof NavigatorRoute
   SignalsRoute: typeof SignalsRoute
   AdminUsersRoute: typeof AdminUsersRoute
+  ApiPublicHooksWeeklyGapDigestRoute: typeof ApiPublicHooksWeeklyGapDigestRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -228,6 +242,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/weekly-gap-digest': {
+      id: '/api/public/hooks/weekly-gap-digest'
+      path: '/api/public/hooks/weekly-gap-digest'
+      fullPath: '/api/public/hooks/weekly-gap-digest'
+      preLoaderRoute: typeof ApiPublicHooksWeeklyGapDigestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -253,6 +274,7 @@ const rootRouteChildren: RootRouteChildren = {
   NavigatorRoute: NavigatorRoute,
   SignalsRoute: SignalsRoute,
   AdminUsersRoute: AdminUsersRoute,
+  ApiPublicHooksWeeklyGapDigestRoute: ApiPublicHooksWeeklyGapDigestRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
