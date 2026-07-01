@@ -587,7 +587,7 @@ function RunnerView({
             Response not accounted for
           </button>
         )}
-        <Button onClick={onEnd} variant="outline" className="rounded-none border-foreground">
+        <Button onClick={beginEndCall} variant="outline" className="rounded-none border-foreground">
           End call
         </Button>
       </div>
