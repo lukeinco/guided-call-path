@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { useAuth } from "@/lib/auth";
+import { useAuth, isAdminish } from "@/lib/auth";
 import { AppShell } from "@/components/AppShell";
 
 export const Route = createFileRoute("/editor")({
@@ -14,10 +14,10 @@ function EditorLayout() {
   useEffect(() => {
     if (auth.loading) return;
     if (!auth.userId) navigate({ to: "/auth", replace: true });
-    else if (auth.role !== "admin") navigate({ to: "/navigator", replace: true });
+    else if (!isAdminish(auth.role)) navigate({ to: "/navigator", replace: true });
   }, [auth.loading, auth.userId, auth.role, navigate]);
 
-  if (auth.loading || !auth.userId || auth.role !== "admin") {
+  if (auth.loading || !auth.userId || !isAdminish(auth.role)) {
     return <div className="flex min-h-screen items-center justify-center text-xs uppercase tracking-[0.2em] text-muted-foreground">Loading</div>;
   }
   return (

@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
+import { useAuth, isAdminish } from "@/lib/auth";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -24,7 +24,7 @@ function JoinPage() {
     if (!auth.userId) {
       navigate({ to: "/auth", replace: true });
     } else if (auth.orgId) {
-      navigate({ to: auth.role === "admin" ? "/editor" : "/navigator", replace: true });
+      navigate({ to: isAdminish(auth.role) ? "/editor" : "/navigator", replace: true });
     } else if (auth.displayName && !displayName) {
       setDisplayName(auth.displayName);
     }

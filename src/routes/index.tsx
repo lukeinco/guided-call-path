@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { useAuth } from "@/lib/auth";
+import { useAuth, isAdminish } from "@/lib/auth";
 
 export const Route = createFileRoute("/")({
   ssr: false,
@@ -13,7 +13,7 @@ function Index() {
   useEffect(() => {
     if (auth.loading) return;
     if (!auth.userId) navigate({ to: "/auth", replace: true });
-    else if (auth.role === "admin") navigate({ to: "/editor", replace: true });
+    else if (isAdminish(auth.role)) navigate({ to: "/editor", replace: true });
     else navigate({ to: "/navigator", replace: true });
   }, [auth.loading, auth.userId, auth.role, navigate]);
   return (

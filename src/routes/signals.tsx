@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
+import { useAuth, isAdminish } from "@/lib/auth";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import type { ScriptDefinition, ScriptStep } from "@/lib/script-types";
@@ -38,13 +38,13 @@ export function Gaps() {
   useEffect(() => {
     if (auth.loading) return;
     if (!auth.userId) navigate({ to: "/auth", replace: true });
-    else if (auth.role !== "admin" && auth.role !== "superadmin")
+    else if (!isAdminish(auth.role))
       navigate({ to: "/navigator", replace: true });
   }, [auth.loading, auth.userId, auth.role, navigate]);
 
   const { data: gaps, isLoading } = useQuery({
     queryKey: ["gaps", auth.orgId],
-    enabled: !!auth.userId && (auth.role === "admin" || auth.role === "superadmin"),
+    enabled: !!auth.userId && isAdminish(auth.role),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("events")
@@ -96,7 +96,7 @@ export function Gaps() {
     }
   }
 
-  if (auth.loading || (auth.role !== "admin" && auth.role !== "superadmin")) return null;
+  if (auth.loading || !isAdminish(auth.role)) return null;
 
   return (
     <AppShell title="Gaps inbox">

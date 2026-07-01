@@ -3,6 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type AppRole = "admin" | "caller" | "superadmin";
 
+export const isAdminish = (role: AppRole | null | undefined): boolean =>
+  role === "admin" || role === "superadmin";
+
 interface AuthState {
   loading: boolean;
   userId: string | null;

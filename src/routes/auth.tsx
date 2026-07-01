@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
+import { useAuth, isAdminish } from "@/lib/auth";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -26,22 +26,31 @@ function AuthPage() {
       if (!auth.orgId && auth.role !== "superadmin") {
         navigate({ to: "/join", replace: true });
       } else {
-        navigate({ to: auth.role === "admin" ? "/editor" : "/navigator", replace: true });
+        navigate({ to: isAdminish(auth.role) ? "/editor" : "/navigator", replace: true });
       }
     }
   }, [auth.loading, auth.userId, auth.orgId, auth.role, navigate]);
 
   async function handleGoogle() {
     setError(null);
+    // If this returns 400 "provider is not enabled" or similar, the fix is
+    // configuration, not code. Required setup:
+    //  - Google provider enabled in Supabase Auth with valid Client ID + Secret.
+    //  - Supabase callback URL (…/auth/v1/callback) registered as an
+    //    Authorized redirect URI in Google Cloud Console → OAuth credentials.
+    //  - This app's origin (window.location.origin) added to Supabase Auth
+    //    redirect allow-list (Additional Redirect URLs).
     // NOTE: For a Google login to merge with a prior email/password account on
     // the same address into ONE user, enable "Link identities with same email"
-    // in the Supabase dashboard under Authentication → Settings. Without it,
-    // Supabase creates a distinct user for the Google identity.
+    // in the Supabase dashboard under Authentication → Settings.
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: window.location.origin },
     });
-    if (error) setError(error.message);
+    if (error) {
+      console.error("Google sign-in error:", error);
+      setError(error.message || "Google sign-in failed");
+    }
   }
 
 
