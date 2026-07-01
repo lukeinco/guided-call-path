@@ -1,11 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useActingOrg } from "@/lib/acting-org";
 import { Button } from "@/components/ui/button";
 import { emptyDefinition } from "@/lib/script-types";
 import { sampleDefinition, SAMPLE_SCRIPT_NAME } from "@/lib/sample-script";
+import { AI_BUILDER_PROMPT } from "@/lib/ai-builder-prompt";
 import { useState } from "react";
 
 export const Route = createFileRoute("/editor/")({
