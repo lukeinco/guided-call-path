@@ -1,15 +1,20 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
+import { useActingOrg } from "@/lib/acting-org";
 import type { ReactNode } from "react";
 
 export function AppShell({ children, title }: { children: ReactNode; title?: string }) {
   const auth = useAuth();
+  const acting = useActingOrg();
   const navigate = useNavigate();
 
   async function handleSignOut() {
     await auth.signOut();
     navigate({ to: "/auth" });
   }
+
+  const isSuper = auth.role === "superadmin";
+  const showAdminNav = auth.role === "admin" || isSuper;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -25,7 +30,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
             <Link to="/navigator" activeProps={{ className: "text-foreground" }}>
               Navigator
             </Link>
-            {auth.role === "admin" && (
+            {showAdminNav && (
               <>
                 <Link to="/editor" activeProps={{ className: "text-foreground" }}>
                   Editor
@@ -35,6 +40,11 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
                 </Link>
               </>
             )}
+            {isSuper && (
+              <Link to="/admin/users" activeProps={{ className: "text-foreground" }}>
+                Users
+              </Link>
+            )}
             <span className="text-hairline">|</span>
             <span className="normal-case tracking-normal">{auth.displayName ?? auth.email}</span>
             <button onClick={handleSignOut} className="cursor-pointer hover:text-foreground">
@@ -43,6 +53,26 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
           </nav>
         </div>
       </header>
+
+      {acting.isActing && acting.actingOrg && (
+        <div className="border-b border-hairline bg-iron/5">
+          <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-6 px-6 py-2 text-xs">
+            <span className="tracking-[0.12em] text-iron">
+              Acting as <span className="font-mono">{acting.actingOrg.name}</span>
+            </span>
+            <button
+              onClick={() => {
+                acting.clearActingOrg();
+                navigate({ to: "/admin/users" });
+              }}
+              className="uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
+            >
+              Exit
+            </button>
+          </div>
+        </div>
+      )}
+
       <main>{children}</main>
     </div>
   );
