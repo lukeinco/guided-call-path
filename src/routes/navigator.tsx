@@ -98,7 +98,12 @@ function NavigatorPage() {
     ended_on_step_id?: string | null;
   }) {
     if (runId) {
-      const update: Record<string, unknown> = { ended_at: new Date().toISOString() };
+      const update: {
+        ended_at: string;
+        disposition?: string;
+        killed_by_objection_id?: string | null;
+        ended_on_step_id?: string | null;
+      } = { ended_at: new Date().toISOString() };
       if (opts?.disposition) update.disposition = opts.disposition;
       if (opts?.killed_by_objection_id) update.killed_by_objection_id = opts.killed_by_objection_id;
       if (opts?.ended_on_step_id) update.ended_on_step_id = opts.ended_on_step_id;
