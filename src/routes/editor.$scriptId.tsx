@@ -602,6 +602,7 @@ function ScriptEditor() {
               >
                 Auto-arrange
               </Button>
+              <PrinciplesButton />
               <Button onClick={publish} disabled={publishing} className="rounded-none">
                 {publishing ? "Publishing…" : "Publish new version"}
               </Button>
