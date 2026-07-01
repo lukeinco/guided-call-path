@@ -17,28 +17,37 @@ export type Database = {
       call_runs: {
         Row: {
           caller_id: string
+          disposition: string | null
           ended_at: string | null
+          ended_on_step_id: string | null
           id: string
+          killed_by_objection_id: string | null
           org_id: string
-          scenario: Database["public"]["Enums"]["entry_scenario"]
+          scenario: string
           script_id: string
           started_at: string
         }
         Insert: {
           caller_id: string
+          disposition?: string | null
           ended_at?: string | null
+          ended_on_step_id?: string | null
           id?: string
+          killed_by_objection_id?: string | null
           org_id: string
-          scenario: Database["public"]["Enums"]["entry_scenario"]
+          scenario: string
           script_id: string
           started_at?: string
         }
         Update: {
           caller_id?: string
+          disposition?: string | null
           ended_at?: string | null
+          ended_on_step_id?: string | null
           id?: string
+          killed_by_objection_id?: string | null
           org_id?: string
-          scenario?: Database["public"]["Enums"]["entry_scenario"]
+          scenario?: string
           script_id?: string
           started_at?: string
         }
@@ -62,28 +71,34 @@ export type Database = {
       events: {
         Row: {
           created_at: string
+          detail: string | null
           id: string
           org_id: string
           response_label: string | null
           run_id: string
+          section_type: string | null
           step_id: string
           type: Database["public"]["Enums"]["event_type"]
         }
         Insert: {
           created_at?: string
+          detail?: string | null
           id?: string
           org_id: string
           response_label?: string | null
           run_id: string
+          section_type?: string | null
           step_id: string
           type: Database["public"]["Enums"]["event_type"]
         }
         Update: {
           created_at?: string
+          detail?: string | null
           id?: string
           org_id?: string
           response_label?: string | null
           run_id?: string
+          section_type?: string | null
           step_id?: string
           type?: Database["public"]["Enums"]["event_type"]
         }
@@ -163,6 +178,7 @@ export type Database = {
           name: string
           org_id: string
           version: number
+          vertical: string
         }
         Insert: {
           created_at?: string
@@ -172,6 +188,7 @@ export type Database = {
           name: string
           org_id: string
           version?: number
+          vertical?: string
         }
         Update: {
           created_at?: string
@@ -181,6 +198,7 @@ export type Database = {
           name?: string
           org_id?: string
           version?: number
+          vertical?: string
         }
         Relationships: [
           {
@@ -226,13 +244,17 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "caller"
+      app_role: "admin" | "caller" | "superadmin"
       entry_scenario:
         | "gatekeeper"
         | "direct_contact"
         | "no_name"
         | "cell_vs_company"
-      event_type: "response_selected" | "off_script"
+      event_type:
+        | "response_selected"
+        | "off_script"
+        | "objection_opened"
+        | "not_accounted_for"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -360,14 +382,19 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "caller"],
+      app_role: ["admin", "caller", "superadmin"],
       entry_scenario: [
         "gatekeeper",
         "direct_contact",
         "no_name",
         "cell_vs_company",
       ],
-      event_type: ["response_selected", "off_script"],
+      event_type: [
+        "response_selected",
+        "off_script",
+        "objection_opened",
+        "not_accounted_for",
+      ],
     },
   },
 } as const
