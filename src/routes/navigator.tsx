@@ -54,12 +54,13 @@ function NavigatorPage() {
   }, [script]);
 
   const entryStepsByScenario = useMemo(() => {
-    const m = new Map<EntryScenario, ScriptStep[]>();
+    const m = new Map<string, ScriptStep[]>();
     script?.definition.steps.forEach((s) => {
       if (s.is_entry && s.entry_scenario) {
-        const arr = m.get(s.entry_scenario) ?? [];
+        const key = s.entry_scenario as string;
+        const arr = m.get(key) ?? [];
         arr.push(s);
-        m.set(s.entry_scenario, arr);
+        m.set(key, arr);
       }
     });
     return m;
