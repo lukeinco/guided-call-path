@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
+import { useAuth, isAdminish } from "@/lib/auth";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import type { ScriptDefinition, ScriptStep } from "@/lib/script-types";
