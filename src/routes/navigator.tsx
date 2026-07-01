@@ -159,7 +159,7 @@ function ScenarioPicker({
   script: ActiveScript;
   scripts: ActiveScript[];
   onPickScript: (id: string) => void;
-  entryStepsByScenario: Map<EntryScenario, ScriptStep[]>;
+  entryStepsByScenario: Map<string, ScriptStep[]>;
   onStart: (s: EntryScenario) => void;
 }) {
   const scenarios: EntryScenario[] = ["gatekeeper", "direct_contact", "no_name", "cell_vs_company"];
