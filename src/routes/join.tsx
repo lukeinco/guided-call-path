@@ -24,7 +24,7 @@ function JoinPage() {
     if (!auth.userId) {
       navigate({ to: "/auth", replace: true });
     } else if (auth.orgId) {
-      navigate({ to: auth.role === "admin" ? "/editor" : "/navigator", replace: true });
+      navigate({ to: isAdminish(auth.role) ? "/editor" : "/navigator", replace: true });
     } else if (auth.displayName && !displayName) {
       setDisplayName(auth.displayName);
     }
