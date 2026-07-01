@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -13,25 +13,48 @@ import {
   type Node,
   type Edge,
   type NodeProps,
+  type Connection,
   Handle,
   Position,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import dagre from "dagre";
+import { Info, Trash2, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useActingOrg } from "@/lib/acting-org";
 import { Button } from "@/components/ui/button";
-import type { ScriptDefinition, ScriptStep } from "@/lib/script-types";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  BASE_SECTION_TYPES,
+  SECTION_TYPE_DEFINITION,
+  SECTION_TYPE_LABEL,
+  newResponseId,
+  type ScriptDefinition,
+  type ScriptResponse,
+  type ScriptStep,
+} from "@/lib/script-types";
 
 export const Route = createFileRoute("/editor/$scriptId")({
   ssr: false,
   component: ScriptEditor,
 });
 
-const NODE_W = 260;
-const NODE_H = 120;
+const NODE_W = 280;
+const NODE_MIN_H = 120;
 
-// Deterministic pastel tint from a section_type string.
 function tintFor(section: string): string {
   let h = 0;
   for (let i = 0; i < section.length; i++) h = (h * 31 + section.charCodeAt(i)) >>> 0;
@@ -47,45 +70,88 @@ function truncate(s: string, n: number) {
 type StepNodeData = {
   step: ScriptStep;
   unreachable: boolean;
+  onMakeEntry: (stepId: string) => void;
 };
 
 function StepNode({ data }: NodeProps) {
-  const { step, unreachable } = data as unknown as StepNodeData;
+  const { step, unreachable, onMakeEntry } = data as unknown as StepNodeData;
   const section = step.section_type ?? null;
   return (
     <div
       className="relative bg-card px-4 py-3"
       style={{
         width: NODE_W,
-        minHeight: NODE_H,
-        border: `1px ${unreachable ? "dashed" : "solid"} hsl(var(--hairline, 30 10% 80%))`,
+        minHeight: NODE_MIN_H,
+        border: `1px ${unreachable ? "dashed" : "solid"} rgba(43,43,40,0.2)`,
         borderColor: unreachable ? "rgba(196, 74, 24, 0.55)" : undefined,
       }}
     >
-      <Handle type="target" position={Position.Left} style={{ background: "#2B2B28", width: 6, height: 6, border: 0 }} />
+      <Handle
+        type="target"
+        position={Position.Left}
+        style={{ background: "#2B2B28", width: 8, height: 8, border: 0 }}
+      />
       <div className="flex items-center gap-2 text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
-        {step.is_entry && <span className="text-iron">Entry</span>}
-        {step.is_entry && section && <span>·</span>}
-        {section && (
+        {step.is_entry && <span className="text-iron">Entry{step.entry_scenario ? ` · ${step.entry_scenario}` : ""}</span>}
+        {!step.is_entry && section && (
           <span
             className="rounded-sm px-1.5 py-0.5 text-[9px]"
             style={{ background: tintFor(section), color: "#2B2B28" }}
           >
-            {section}
+            {SECTION_TYPE_LABEL[section] ?? section}
           </span>
         )}
         {!step.is_entry && !section && <span>Step</span>}
         <span className="ml-auto font-mono normal-case text-[9px] opacity-60">{step.id}</span>
       </div>
       <p className="mt-2 font-serif text-[15px] leading-snug text-foreground">
-        {truncate(step.caller_line || "(empty step)", 120)}
+        {truncate(step.caller_line || "(empty step)", 140)}
       </p>
+
       {step.responses.length > 0 && (
-        <p className="mt-2 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          {step.responses.length} response{step.responses.length === 1 ? "" : "s"}
-        </p>
+        <div className="mt-3 space-y-1">
+          {step.responses.map((r) => (
+            <div
+              key={r.id}
+              className="relative flex items-center gap-2 rounded-sm border border-hairline/70 bg-parchment/40 px-2 py-1 text-[11px]"
+              style={r.is_most_likely ? { borderColor: "#C44A18" } : undefined}
+            >
+              {r.is_most_likely && <span className="h-1.5 w-1.5 rounded-full bg-iron" />}
+              <span className="truncate text-foreground/90">
+                {r.label || <span className="italic text-muted-foreground">(empty response)</span>}
+              </span>
+              {!r.next_step_id && (
+                <span className="ml-auto font-mono text-[9px] text-muted-foreground">unwired</span>
+              )}
+              <Handle
+                id={r.id}
+                type="source"
+                position={Position.Right}
+                style={{
+                  background: r.is_most_likely ? "#C44A18" : "#2B2B28",
+                  width: 10,
+                  height: 10,
+                  border: "2px solid #F5F0E8",
+                  right: -6,
+                }}
+              />
+            </div>
+          ))}
+        </div>
       )}
-      <Handle type="source" position={Position.Right} style={{ background: "#2B2B28", width: 6, height: 6, border: 0 }} />
+
+      {unreachable && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onMakeEntry(step.id);
+          }}
+          className="mt-3 w-full border border-dashed border-iron/60 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-iron hover:bg-iron/5"
+        >
+          Not reachable — make entry point?
+        </button>
+      )}
     </div>
   );
 }
@@ -94,9 +160,9 @@ const nodeTypes = { step: StepNode };
 
 function autoLayout(steps: ScriptStep[]): Record<string, { x: number; y: number }> {
   const g = new dagre.graphlib.Graph();
-  g.setGraph({ rankdir: "LR", nodesep: 40, ranksep: 80, marginx: 20, marginy: 20 });
+  g.setGraph({ rankdir: "LR", nodesep: 40, ranksep: 100, marginx: 20, marginy: 20 });
   g.setDefaultEdgeLabel(() => ({}));
-  steps.forEach((s) => g.setNode(s.id, { width: NODE_W, height: NODE_H }));
+  steps.forEach((s) => g.setNode(s.id, { width: NODE_W, height: NODE_MIN_H + s.responses.length * 24 }));
   steps.forEach((s) => {
     s.responses.forEach((r) => {
       if (r.next_step_id && steps.some((x) => x.id === r.next_step_id)) {
@@ -108,16 +174,17 @@ function autoLayout(steps: ScriptStep[]): Record<string, { x: number; y: number 
   const out: Record<string, { x: number; y: number }> = {};
   steps.forEach((s) => {
     const n = g.node(s.id);
-    if (n) out[s.id] = { x: n.x - NODE_W / 2, y: n.y - NODE_H / 2 };
+    if (n) out[s.id] = { x: n.x - NODE_W / 2, y: n.y - NODE_MIN_H / 2 };
   });
   return out;
 }
 
-function buildGraph(definition: ScriptDefinition): { nodes: Node[]; edges: Edge[] } {
+function buildGraph(
+  definition: ScriptDefinition,
+  onMakeEntry: (id: string) => void
+): { nodes: Node[]; edges: Edge[] } {
   const steps = definition.steps ?? [];
   const stepIds = new Set(steps.map((s) => s.id));
-
-  // Incoming edge counts per step id
   const incoming = new Map<string, number>();
   steps.forEach((s) =>
     s.responses.forEach((r) => {
@@ -127,49 +194,44 @@ function buildGraph(definition: ScriptDefinition): { nodes: Node[]; edges: Edge[
     })
   );
 
-  // If any step lacks x/y, run dagre and fill in
   const needsLayout = steps.some((s) => s.x == null || s.y == null);
   const fallback = needsLayout ? autoLayout(steps) : {};
 
   const nodes: Node[] = steps.map((s) => {
-    const pos =
-      s.x != null && s.y != null
-        ? { x: s.x, y: s.y }
-        : fallback[s.id] ?? { x: 0, y: 0 };
+    const pos = s.x != null && s.y != null ? { x: s.x, y: s.y } : fallback[s.id] ?? { x: 0, y: 0 };
     const unreachable = !s.is_entry && (incoming.get(s.id) ?? 0) === 0;
     return {
       id: s.id,
       type: "step",
       position: pos,
-      data: { step: s, unreachable } as unknown as Record<string, unknown>,
+      data: { step: s, unreachable, onMakeEntry } as unknown as Record<string, unknown>,
       draggable: true,
     };
   });
-
-  // Count convergence for edge styling
-  const convergence = incoming;
 
   const edges: Edge[] = [];
   steps.forEach((s) => {
     s.responses.forEach((r) => {
       if (!r.next_step_id || !stepIds.has(r.next_step_id)) return;
-      const converges = (convergence.get(r.next_step_id) ?? 0) > 1;
+      const converges = (incoming.get(r.next_step_id) ?? 0) > 1;
+      const highlight = r.is_most_likely || converges;
       edges.push({
         id: `${s.id}:${r.id}`,
         source: s.id,
+        sourceHandle: r.id,
         target: r.next_step_id,
         label: truncate(r.label || "", 28),
         labelStyle: { fontFamily: "IBM Plex Mono, monospace", fontSize: 10, fill: "#2B2B28" },
         labelBgStyle: { fill: "#F5F0E8", fillOpacity: 0.9 },
         labelBgPadding: [4, 2],
         style: {
-          stroke: converges ? "#C44A18" : "#2B2B28",
-          strokeWidth: converges ? 1.75 : 1,
-          opacity: converges ? 0.95 : 0.75,
+          stroke: highlight ? "#C44A18" : "#2B2B28",
+          strokeWidth: r.is_most_likely ? 2 : converges ? 1.75 : 1,
+          opacity: highlight ? 0.95 : 0.7,
         },
         markerEnd: {
           type: MarkerType.ArrowClosed,
-          color: converges ? "#C44A18" : "#2B2B28",
+          color: highlight ? "#C44A18" : "#2B2B28",
           width: 14,
           height: 14,
         },
@@ -178,6 +240,113 @@ function buildGraph(definition: ScriptDefinition): { nodes: Node[]; edges: Edge[
   });
 
   return { nodes, edges };
+}
+
+function SectionSelect({
+  value,
+  customTypes,
+  onChange,
+  onAddCustom,
+}: {
+  value: string | null | undefined;
+  customTypes: string[];
+  onChange: (v: string | null) => void;
+  onAddCustom: (name: string) => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState("");
+  const currentDef = value ? SECTION_TYPE_DEFINITION[value] : null;
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <Select
+          value={value ?? "__none"}
+          onValueChange={(v) => onChange(v === "__none" ? null : v)}
+        >
+          <SelectTrigger className="rounded-none">
+            <SelectValue placeholder="Section type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none">No section</SelectItem>
+            <SelectGroup>
+              <SelectLabel className="text-[10px] uppercase tracking-[0.16em]">Base</SelectLabel>
+              {BASE_SECTION_TYPES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {SECTION_TYPE_LABEL[s] ?? s}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+            {customTypes.length > 0 && (
+              <SelectGroup>
+                <SelectLabel className="text-[10px] uppercase tracking-[0.16em]">Custom</SelectLabel>
+                {customTypes.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            )}
+          </SelectContent>
+        </Select>
+        {currentDef && (
+          <HoverCard openDelay={100}>
+            <HoverCardTrigger asChild>
+              <button
+                type="button"
+                className="grid h-8 w-8 place-items-center border border-hairline text-muted-foreground hover:text-iron"
+                aria-label="Section type reference"
+              >
+                <Info className="h-3.5 w-3.5" />
+              </button>
+            </HoverCardTrigger>
+            <HoverCardContent className="w-80 rounded-none border-hairline bg-parchment">
+              <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-iron">
+                {SECTION_TYPE_LABEL[value!] ?? value}
+              </p>
+              <p className="mt-1 font-serif text-sm leading-snug text-foreground">{currentDef}</p>
+            </HoverCardContent>
+          </HoverCard>
+        )}
+      </div>
+
+      {!adding && (
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground hover:text-iron"
+        >
+          + Add custom section type
+        </button>
+      )}
+      {adding && (
+        <div className="flex gap-2">
+          <Input
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="custom_section_name"
+            className="rounded-none"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-none border-foreground"
+            onClick={() => {
+              const v = draft.trim();
+              if (v) {
+                onAddCustom(v);
+                onChange(v);
+              }
+              setDraft("");
+              setAdding(false);
+            }}
+          >
+            Add
+          </Button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function ScriptEditor() {
@@ -197,32 +366,76 @@ function ScriptEditor() {
 
   const [name, setName] = useState("");
   const [definition, setDefinition] = useState<ScriptDefinition>({ steps: [] });
-  const [saving, setSaving] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [publishing, setPublishing] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const loadedRef = useRef(false);
 
   useEffect(() => {
-    if (data) {
+    if (data && !loadedRef.current) {
       setName(data.name);
       setDefinition(data.definition as unknown as ScriptDefinition);
+      loadedRef.current = true;
     }
   }, [data]);
 
+  // Autosave (definition + name) — debounced, no version bump.
+  useEffect(() => {
+    if (!loadedRef.current || !dirty) return;
+    const handle = setTimeout(async () => {
+      const { error } = await supabase
+        .from("scripts")
+        .update({ name, definition: definition as unknown as never })
+        .eq("id", scriptId);
+      if (!error) {
+        setSavedAt(new Date().toLocaleTimeString());
+        setDirty(false);
+      }
+    }, 700);
+    return () => clearTimeout(handle);
+  }, [name, definition, dirty, scriptId]);
+
+  const updateDefinition = useCallback((updater: (d: ScriptDefinition) => ScriptDefinition) => {
+    setDefinition((d) => updater(d));
+    setDirty(true);
+  }, []);
+
+  const updateStep = useCallback(
+    (id: string, patch: Partial<ScriptStep> | ((s: ScriptStep) => ScriptStep)) => {
+      updateDefinition((d) => ({
+        ...d,
+        steps: d.steps.map((s) =>
+          s.id === id ? (typeof patch === "function" ? patch(s) : { ...s, ...patch }) : s
+        ),
+      }));
+    },
+    [updateDefinition]
+  );
+
+  const handleMakeEntry = useCallback(
+    (stepId: string) => {
+      updateStep(stepId, { is_entry: true });
+      setSelectedId(stepId);
+    },
+    [updateStep]
+  );
+
   const { nodes: initialNodes, edges: initialEdges } = useMemo(
-    () => buildGraph(definition),
-    [definition]
+    () => buildGraph(definition, handleMakeEntry),
+    [definition, handleMakeEntry]
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, , onEdgesChange] = useEdgesState(initialEdges);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  // Sync when definition changes (loaded / auto-arranged / saved)
   useEffect(() => {
     setNodes(initialNodes);
-  }, [initialNodes, setNodes]);
+    setEdges(initialEdges);
+  }, [initialNodes, initialEdges, setNodes, setEdges]);
 
-  // Persist drag positions back into definition (local state only)
   const commitPositions = useCallback(() => {
-    setDefinition((d) => {
+    updateDefinition((d) => {
       const posById = new Map(nodes.map((n) => [n.id, n.position]));
       return {
         ...d,
@@ -232,101 +445,158 @@ function ScriptEditor() {
         }),
       };
     });
-  }, [nodes]);
+  }, [nodes, updateDefinition]);
+
+  const onConnect = useCallback(
+    (c: Connection) => {
+      if (!c.source || !c.target || !c.sourceHandle) return;
+      updateStep(c.source, (s) => ({
+        ...s,
+        responses: s.responses.map((r) =>
+          r.id === c.sourceHandle ? { ...r, next_step_id: c.target! } : r
+        ),
+      }));
+    },
+    [updateStep]
+  );
 
   function autoArrange() {
     const positions = autoLayout(definition.steps);
-    const next: ScriptDefinition = {
-      ...definition,
-      steps: definition.steps.map((s) => ({
+    updateDefinition((d) => ({
+      ...d,
+      steps: d.steps.map((s) => ({
         ...s,
         x: positions[s.id]?.x ?? s.x ?? 0,
         y: positions[s.id]?.y ?? s.y ?? 0,
       })),
-    };
-    setDefinition(next);
-    void save({ asNewVersion: false, overrideDefinition: next });
+    }));
   }
 
-  async function save({
-    asNewVersion,
-    overrideDefinition,
-  }: {
-    asNewVersion: boolean;
-    overrideDefinition?: ScriptDefinition;
-  }) {
+  function addStep() {
+    const id = "s_" + Math.random().toString(36).slice(2, 9);
+    const newStep: ScriptStep = {
+      id,
+      caller_line: "",
+      responses: [],
+      x: 40,
+      y: 40,
+    };
+    updateDefinition((d) => ({ ...d, steps: [...d.steps, newStep] }));
+    setSelectedId(id);
+  }
+
+  async function publish() {
     if (!orgId || !data) return;
-    setSaving(true);
+    setPublishing(true);
     try {
-      // Always commit latest drag positions into whatever we're about to save
-      const posById = new Map(nodes.map((n) => [n.id, n.position]));
-      const base = overrideDefinition ?? definition;
-      const def: ScriptDefinition = {
-        ...base,
-        steps: base.steps.map((s) => {
-          const p = posById.get(s.id);
-          return p ? { ...s, x: p.x, y: p.y } : s;
-        }),
+      // Ensure latest autosave is flushed first
+      await supabase
+        .from("scripts")
+        .update({ name, definition: definition as unknown as never })
+        .eq("id", scriptId);
+
+      const vertical = (data as { vertical?: string }).vertical ?? "general";
+      const { data: rows } = await supabase
+        .from("scripts")
+        .select("version")
+        .eq("org_id", orgId)
+        .eq("name", name)
+        .order("version", { ascending: false })
+        .limit(1);
+      const nextVersion = (rows?.[0]?.version ?? data.version) + 1;
+
+      await supabase
+        .from("scripts")
+        .update({ is_active: false })
+        .eq("org_id", orgId)
+        .eq("name", name);
+
+      const insertPayload: Record<string, unknown> = {
+        org_id: orgId,
+        name,
+        version: nextVersion,
+        is_active: true,
+        definition: definition as unknown as never,
+        vertical,
       };
-      if (asNewVersion) {
-        const { data: rows } = await supabase
-          .from("scripts").select("version").eq("org_id", orgId).eq("name", name).order("version", { ascending: false }).limit(1);
-        const nextVersion = (rows?.[0]?.version ?? data.version) + 1;
-        await supabase.from("scripts").update({ is_active: false }).eq("org_id", orgId).eq("name", name);
-        const { data: inserted, error } = await supabase
-          .from("scripts")
-          .insert({ org_id: orgId, name, version: nextVersion, is_active: true, definition: def as unknown as never })
-          .select("id").single();
-        if (error) throw error;
-        navigate({ to: "/editor/$scriptId", params: { scriptId: inserted.id }, replace: true });
-      } else {
-        const { error } = await supabase.from("scripts").update({ name, definition: def as unknown as never }).eq("id", scriptId);
-        if (error) throw error;
-        setDefinition(def);
-      }
-      setSavedAt(new Date().toLocaleTimeString());
+      const { data: inserted, error } = await supabase
+        .from("scripts")
+        .insert(insertPayload as never)
+        .select("id")
+        .single();
+      if (error) throw error;
+      navigate({ to: "/editor/$scriptId", params: { scriptId: inserted.id }, replace: true });
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Save failed");
+      alert(e instanceof Error ? e.message : "Publish failed");
     } finally {
-      setSaving(false);
+      setPublishing(false);
     }
   }
 
+  const selectedStep = definition.steps.find((s) => s.id === selectedId) ?? null;
+  const customTypes = definition.custom_section_types ?? [];
+
   if (isLoading || !data) {
-    return <div className="px-6 py-12 text-xs uppercase tracking-[0.2em] text-muted-foreground">Loading…</div>;
+    return (
+      <div className="px-6 py-12 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+        Loading…
+      </div>
+    );
   }
 
   return (
     <div className="flex h-[calc(100vh-56px)] flex-col">
       <div className="border-b border-hairline px-6 py-4">
-        <Link to="/editor" className="text-xs uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground">
+        <Link
+          to="/editor"
+          className="text-xs uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
+        >
           ← All scripts
         </Link>
         <div className="mt-3 flex items-end justify-between gap-6">
           <div className="flex-1">
-            <label className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Script name</label>
+            <label className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+              Script name
+            </label>
             <input
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                setDirty(true);
+              }}
               className="mt-1 w-full bg-transparent font-serif text-3xl outline-none"
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Version {data.version} · {data.is_active ? <span className="text-iron">Active</span> : "Draft"} · {definition.steps.length} step{definition.steps.length === 1 ? "" : "s"}
+              v{data.version} ·{" "}
+              {data.is_active ? (
+                <span className="text-iron">Published (active)</span>
+              ) : (
+                <span>Draft</span>
+              )}{" "}
+              · {definition.steps.length} step{definition.steps.length === 1 ? "" : "s"} ·{" "}
+              {dirty ? "Saving…" : savedAt ? `Autosaved ${savedAt}` : "Up to date"}
             </p>
           </div>
           <div className="flex flex-col items-end gap-2">
             <div className="flex gap-2">
-              <Button onClick={autoArrange} disabled={saving} variant="outline" className="rounded-none border-foreground">
+              <Button
+                onClick={addStep}
+                variant="outline"
+                className="rounded-none border-foreground"
+              >
+                <Plus className="mr-1 h-3.5 w-3.5" /> Add step
+              </Button>
+              <Button
+                onClick={autoArrange}
+                variant="outline"
+                className="rounded-none border-foreground"
+              >
                 Auto-arrange
               </Button>
-              <Button onClick={() => { commitPositions(); void save({ asNewVersion: false }); }} disabled={saving} variant="outline" className="rounded-none border-foreground">
-                Save draft
-              </Button>
-              <Button onClick={() => { commitPositions(); void save({ asNewVersion: true }); }} disabled={saving} className="rounded-none">
-                Save as new active version
+              <Button onClick={publish} disabled={publishing} className="rounded-none">
+                {publishing ? "Publishing…" : "Publish new version"}
               </Button>
             </div>
-            {savedAt && <p className="text-[11px] text-muted-foreground">Saved at {savedAt}</p>}
           </div>
         </div>
       </div>
@@ -339,7 +609,9 @@ function ScriptEditor() {
             nodeTypes={nodeTypes}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
             onNodeDragStop={commitPositions}
+            onNodeClick={(_, n) => setSelectedId(n.id)}
             fitView
             proOptions={{ hideAttribution: true }}
             defaultEdgeOptions={{ type: "default" }}
@@ -359,6 +631,230 @@ function ScriptEditor() {
             <Controls showInteractive={false} />
           </ReactFlow>
         </ReactFlowProvider>
+      </div>
+
+      <Sheet open={!!selectedStep} onOpenChange={(o) => !o && setSelectedId(null)}>
+        <SheetContent
+          side="right"
+          className="w-full overflow-y-auto rounded-none border-l border-hairline bg-parchment sm:max-w-lg"
+        >
+          {selectedStep && (
+            <>
+              <SheetHeader>
+                <SheetTitle className="font-serif text-2xl">Edit step</SheetTitle>
+                <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                  {selectedStep.id}
+                </p>
+              </SheetHeader>
+
+              <div className="mt-6 space-y-6">
+                <div>
+                  <label className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                    Caller line
+                  </label>
+                  <Textarea
+                    value={selectedStep.caller_line}
+                    onChange={(e) =>
+                      updateStep(selectedStep.id, { caller_line: e.target.value })
+                    }
+                    className="mt-1 min-h-[120px] rounded-none border-hairline bg-transparent font-serif text-lg leading-snug"
+                    placeholder="What the caller says on this step"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                    Section type
+                  </label>
+                  <div className="mt-1">
+                    <SectionSelect
+                      value={selectedStep.section_type}
+                      customTypes={customTypes}
+                      onChange={(v) => updateStep(selectedStep.id, { section_type: v })}
+                      onAddCustom={(v) => {
+                        updateDefinition((d) => ({
+                          ...d,
+                          custom_section_types: Array.from(
+                            new Set([...(d.custom_section_types ?? []), v])
+                          ),
+                        }));
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between border-y border-hairline py-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                      Entry point
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Valid opening line for a scenario.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={!!selectedStep.is_entry}
+                    onCheckedChange={(v) =>
+                      updateStep(selectedStep.id, {
+                        is_entry: v,
+                        entry_scenario: v ? selectedStep.entry_scenario ?? "" : null,
+                      })
+                    }
+                  />
+                </div>
+                {selectedStep.is_entry && (
+                  <div>
+                    <label className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                      Entry scenario
+                    </label>
+                    <Input
+                      value={selectedStep.entry_scenario ?? ""}
+                      onChange={(e) =>
+                        updateStep(selectedStep.id, { entry_scenario: e.target.value })
+                      }
+                      placeholder="e.g. gatekeeper, direct_contact, cold_referral…"
+                      className="mt-1 rounded-none border-hairline bg-transparent font-mono text-sm"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                      Responses
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateStep(selectedStep.id, (s) => ({
+                          ...s,
+                          responses: [
+                            ...s.responses,
+                            { id: newResponseId(), label: "", next_step_id: null },
+                          ],
+                        }))
+                      }
+                      className="text-[10px] uppercase tracking-[0.16em] text-iron hover:underline"
+                    >
+                      + Add response
+                    </button>
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Drag from a response's dot on the canvas to another node to wire it.
+                  </p>
+
+                  <div className="mt-3 space-y-3">
+                    {selectedStep.responses.length === 0 && (
+                      <p className="text-xs italic text-muted-foreground">No responses yet.</p>
+                    )}
+                    {selectedStep.responses.map((r) => (
+                      <ResponseRow
+                        key={r.id}
+                        response={r}
+                        onChange={(patch) =>
+                          updateStep(selectedStep.id, (s) => ({
+                            ...s,
+                            responses: s.responses.map((x) =>
+                              x.id === r.id ? { ...x, ...patch } : x
+                            ),
+                          }))
+                        }
+                        onPickMostLikely={() =>
+                          updateStep(selectedStep.id, (s) => ({
+                            ...s,
+                            responses: s.responses.map((x) => ({
+                              ...x,
+                              is_most_likely: x.id === r.id,
+                            })),
+                          }))
+                        }
+                        onDelete={() =>
+                          updateStep(selectedStep.id, (s) => ({
+                            ...s,
+                            responses: s.responses.filter((x) => x.id !== r.id),
+                          }))
+                        }
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border-t border-hairline pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!confirm("Delete this step? Any responses pointing to it will become unwired.")) return;
+                      updateDefinition((d) => ({
+                        ...d,
+                        steps: d.steps
+                          .filter((s) => s.id !== selectedStep.id)
+                          .map((s) => ({
+                            ...s,
+                            responses: s.responses.map((r) =>
+                              r.next_step_id === selectedStep.id
+                                ? { ...r, next_step_id: null }
+                                : r
+                            ),
+                          })),
+                      }));
+                      setSelectedId(null);
+                    }}
+                    className="text-xs uppercase tracking-[0.16em] text-muted-foreground hover:text-iron"
+                  >
+                    Delete step
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
+
+function ResponseRow({
+  response,
+  onChange,
+  onPickMostLikely,
+  onDelete,
+}: {
+  response: ScriptResponse;
+  onChange: (patch: Partial<ScriptResponse>) => void;
+  onPickMostLikely: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="border border-hairline p-3">
+      <div className="flex items-center gap-2">
+        <Input
+          value={response.label}
+          onChange={(e) => onChange({ label: e.target.value })}
+          placeholder="What the prospect said"
+          className="rounded-none border-hairline bg-transparent"
+        />
+        <button
+          type="button"
+          onClick={onDelete}
+          className="grid h-9 w-9 place-items-center text-muted-foreground hover:text-iron"
+          aria-label="Delete response"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <div className="mt-2 flex items-center justify-between text-[11px]">
+        <label className="flex cursor-pointer items-center gap-2 text-muted-foreground">
+          <input
+            type="radio"
+            checked={!!response.is_most_likely}
+            onChange={onPickMostLikely}
+            className="accent-[#C44A18]"
+          />
+          <span className="uppercase tracking-[0.16em]">Most likely</span>
+        </label>
+        <span className="font-mono text-[10px] text-muted-foreground">
+          {response.next_step_id ? `→ ${response.next_step_id}` : "unwired"}
+        </span>
       </div>
     </div>
   );
