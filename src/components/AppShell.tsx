@@ -1,6 +1,8 @@
 import { Link, useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { useActingOrg } from "@/lib/acting-org";
+import { supabase } from "@/integrations/supabase/client";
 import type { ReactNode } from "react";
 
 export function AppShell({ children, title }: { children: ReactNode; title?: string }) {
@@ -15,6 +17,21 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
 
   const isSuper = auth.role === "superadmin";
   const showAdminNav = auth.role === "admin" || isSuper;
+
+  const { data: gapCount = 0 } = useQuery({
+    queryKey: ["gap-count", auth.orgId, isSuper],
+    enabled: showAdminNav && !!auth.userId,
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("events")
+        .select("id", { count: "exact", head: true })
+        .in("type", ["not_accounted_for", "off_script"])
+        .is("reviewed_at", null);
+      if (error) return 0;
+      return count ?? 0;
+    },
+  });
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -35,8 +52,17 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
                 <Link to="/editor" activeProps={{ className: "text-foreground" }}>
                   Editor
                 </Link>
-                <Link to="/signals" activeProps={{ className: "text-foreground" }}>
-                  Signals
+                <Link
+                  to="/signals"
+                  activeProps={{ className: "text-foreground" }}
+                  className="flex items-center gap-1.5"
+                >
+                  Gaps
+                  {gapCount > 0 && (
+                    <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-iron px-1 font-mono text-[9px] normal-case tracking-normal text-parchment">
+                      {gapCount > 99 ? "99+" : gapCount}
+                    </span>
+                  )}
                 </Link>
               </>
             )}

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignalsRouteImport } from './routes/signals'
 import { Route as NavigatorRouteImport } from './routes/navigator'
 import { Route as JoinRouteImport } from './routes/join'
+import { Route as GapsRouteImport } from './routes/gaps'
 import { Route as EditorRouteImport } from './routes/editor'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
@@ -32,6 +33,11 @@ const NavigatorRoute = NavigatorRouteImport.update({
 const JoinRoute = JoinRouteImport.update({
   id: '/join',
   path: '/join',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GapsRoute = GapsRouteImport.update({
+  id: '/gaps',
+  path: '/gaps',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EditorRoute = EditorRouteImport.update({
@@ -69,6 +75,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/editor': typeof EditorRouteWithChildren
+  '/gaps': typeof GapsRoute
   '/join': typeof JoinRoute
   '/navigator': typeof NavigatorRoute
   '/signals': typeof SignalsRoute
@@ -79,6 +86,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/gaps': typeof GapsRoute
   '/join': typeof JoinRoute
   '/navigator': typeof NavigatorRoute
   '/signals': typeof SignalsRoute
@@ -91,6 +99,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/editor': typeof EditorRouteWithChildren
+  '/gaps': typeof GapsRoute
   '/join': typeof JoinRoute
   '/navigator': typeof NavigatorRoute
   '/signals': typeof SignalsRoute
@@ -104,6 +113,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/editor'
+    | '/gaps'
     | '/join'
     | '/navigator'
     | '/signals'
@@ -114,6 +124,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/gaps'
     | '/join'
     | '/navigator'
     | '/signals'
@@ -125,6 +136,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/editor'
+    | '/gaps'
     | '/join'
     | '/navigator'
     | '/signals'
@@ -137,6 +149,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
   EditorRoute: typeof EditorRouteWithChildren
+  GapsRoute: typeof GapsRoute
   JoinRoute: typeof JoinRoute
   NavigatorRoute: typeof NavigatorRoute
   SignalsRoute: typeof SignalsRoute
@@ -164,6 +177,13 @@ declare module '@tanstack/react-router' {
       path: '/join'
       fullPath: '/join'
       preLoaderRoute: typeof JoinRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gaps': {
+      id: '/gaps'
+      path: '/gaps'
+      fullPath: '/gaps'
+      preLoaderRoute: typeof GapsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/editor': {
@@ -228,6 +248,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
   EditorRoute: EditorRouteWithChildren,
+  GapsRoute: GapsRoute,
   JoinRoute: JoinRoute,
   NavigatorRoute: NavigatorRoute,
   SignalsRoute: SignalsRoute,
