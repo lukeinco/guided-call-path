@@ -17,12 +17,17 @@ export interface ScriptStep {
   id: string;
   caller_line: string;
   is_entry?: boolean;
-  entry_scenario?: EntryScenario | null;
+  entry_scenario?: EntryScenario | string | null;
+  section_type?: string | null;
+  x?: number | null;
+  y?: number | null;
   responses: ScriptResponse[];
 }
 
 export interface ScriptDefinition {
   steps: ScriptStep[];
+  objections?: unknown[];
+  custom_section_types?: string[];
 }
 
 export function emptyDefinition(): ScriptDefinition {
