@@ -96,7 +96,7 @@ export function Gaps() {
     }
   }
 
-  if (auth.loading || (auth.role !== "admin" && auth.role !== "superadmin")) return null;
+  if (auth.loading || !isAdminish(auth.role)) return null;
 
   return (
     <AppShell title="Gaps inbox">
