@@ -94,7 +94,9 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Outlet />
+        <ActingOrgProvider>
+          <Outlet />
+        </ActingOrgProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
