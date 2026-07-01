@@ -33,15 +33,24 @@ function AuthPage() {
 
   async function handleGoogle() {
     setError(null);
+    // If this returns 400 "provider is not enabled" or similar, the fix is
+    // configuration, not code. Required setup:
+    //  - Google provider enabled in Supabase Auth with valid Client ID + Secret.
+    //  - Supabase callback URL (…/auth/v1/callback) registered as an
+    //    Authorized redirect URI in Google Cloud Console → OAuth credentials.
+    //  - This app's origin (window.location.origin) added to Supabase Auth
+    //    redirect allow-list (Additional Redirect URLs).
     // NOTE: For a Google login to merge with a prior email/password account on
     // the same address into ONE user, enable "Link identities with same email"
-    // in the Supabase dashboard under Authentication → Settings. Without it,
-    // Supabase creates a distinct user for the Google identity.
+    // in the Supabase dashboard under Authentication → Settings.
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: window.location.origin },
     });
-    if (error) setError(error.message);
+    if (error) {
+      console.error("Google sign-in error:", error);
+      setError(error.message || "Google sign-in failed");
+    }
   }
 
 
