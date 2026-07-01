@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export type AppRole = "admin" | "caller";
+export type AppRole = "admin" | "caller" | "superadmin";
 
 interface AuthState {
   loading: boolean;
