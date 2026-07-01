@@ -77,19 +77,19 @@ function ScriptEditor() {
   }
 
   async function save({ asNewVersion }: { asNewVersion: boolean }) {
-    if (!auth.orgId || !data) return;
+    if (!orgId || !data) return;
     setSaving(true);
     try {
       if (asNewVersion) {
-        // Find highest version of this name and bump
+        // Find highest version of this name in this org and bump
         const { data: rows } = await supabase
-          .from("scripts").select("version").eq("name", name).order("version", { ascending: false }).limit(1);
+          .from("scripts").select("version").eq("org_id", orgId).eq("name", name).order("version", { ascending: false }).limit(1);
         const nextVersion = (rows?.[0]?.version ?? data.version) + 1;
-        // Deactivate siblings
-        await supabase.from("scripts").update({ is_active: false }).eq("name", name);
+        // Deactivate siblings in this org
+        await supabase.from("scripts").update({ is_active: false }).eq("org_id", orgId).eq("name", name);
         const { data: inserted, error } = await supabase
           .from("scripts")
-          .insert({ org_id: auth.orgId, name, version: nextVersion, is_active: true, definition: definition as unknown as never })
+          .insert({ org_id: orgId, name, version: nextVersion, is_active: true, definition: definition as unknown as never })
           .select("id").single();
         if (error) throw error;
         navigate({ to: "/editor/$scriptId", params: { scriptId: inserted.id }, replace: true });
