@@ -19,7 +19,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import dagre from "dagre";
-import { Info, Trash2, Plus } from "lucide-react";
+import { Info, Trash2, Plus, BookOpen, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useActingOrg } from "@/lib/acting-org";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import {
   Select,
@@ -41,8 +48,10 @@ import {
   BASE_SECTION_TYPES,
   SECTION_TYPE_DEFINITION,
   SECTION_TYPE_LABEL,
+  newObjectionId,
   newResponseId,
   type ScriptDefinition,
+  type ScriptObjection,
   type ScriptResponse,
   type ScriptStep,
 } from "@/lib/script-types";
