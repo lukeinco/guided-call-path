@@ -312,12 +312,12 @@ function RunnerView({
   const [endStage, setEndStage] = useState<"idle" | "confirming" | "dialog">("idle");
   const [disposition, setDisposition] = useState<string>("");
   const [killedByObjectionId, setKilledByObjectionId] = useState<string>("");
-  const endedOnStepIdRef = useMemo(() => ({ id: currentId }), [currentId]);
+  const [endedOnStepId, setEndedOnStepId] = useState<string | null>(null);
 
   function beginEndCall() {
     setDisposition("");
     setKilledByObjectionId("");
-    endedOnStepIdRef.id = currentId;
+    setEndedOnStepId(currentId);
     setEndStage("confirming");
     setTimeout(() => setEndStage("dialog"), 550);
   }
@@ -326,7 +326,7 @@ function RunnerView({
     if (!disposition) return;
     onEnd({
       disposition,
-      ended_on_step_id: endedOnStepIdRef.id,
+      ended_on_step_id: endedOnStepId,
       killed_by_objection_id:
         disposition === "objection_unbeat" ? killedByObjectionId || null : null,
     });
