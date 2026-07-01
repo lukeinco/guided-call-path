@@ -98,6 +98,8 @@ function EditorList() {
             <p className="text-[11px] text-muted-foreground">Share this so callers can sign up into your org.</p>
           </div>
         )}
+      </div>
+
 
       <div className="mt-6 flex gap-3">
         <Button onClick={createBlank} disabled={busy} className="rounded-none">New script</Button>
