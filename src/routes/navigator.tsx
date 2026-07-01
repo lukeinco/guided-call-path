@@ -54,12 +54,13 @@ function NavigatorPage() {
   }, [script]);
 
   const entryStepsByScenario = useMemo(() => {
-    const m = new Map<EntryScenario, ScriptStep[]>();
+    const m = new Map<string, ScriptStep[]>();
     script?.definition.steps.forEach((s) => {
       if (s.is_entry && s.entry_scenario) {
-        const arr = m.get(s.entry_scenario) ?? [];
+        const key = s.entry_scenario as string;
+        const arr = m.get(key) ?? [];
         arr.push(s);
-        m.set(s.entry_scenario, arr);
+        m.set(key, arr);
       }
     });
     return m;
@@ -158,7 +159,7 @@ function ScenarioPicker({
   script: ActiveScript;
   scripts: ActiveScript[];
   onPickScript: (id: string) => void;
-  entryStepsByScenario: Map<EntryScenario, ScriptStep[]>;
+  entryStepsByScenario: Map<string, ScriptStep[]>;
   onStart: (s: EntryScenario) => void;
 }) {
   const scenarios: EntryScenario[] = ["gatekeeper", "direct_contact", "no_name", "cell_vs_company"];
