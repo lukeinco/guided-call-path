@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignalsRouteImport } from './routes/signals'
 import { Route as NavigatorRouteImport } from './routes/navigator'
+import { Route as JoinRouteImport } from './routes/join'
 import { Route as EditorRouteImport } from './routes/editor'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
@@ -26,6 +27,11 @@ const SignalsRoute = SignalsRouteImport.update({
 const NavigatorRoute = NavigatorRouteImport.update({
   id: '/navigator',
   path: '/navigator',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JoinRoute = JoinRouteImport.update({
+  id: '/join',
+  path: '/join',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EditorRoute = EditorRouteImport.update({
@@ -63,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/editor': typeof EditorRouteWithChildren
+  '/join': typeof JoinRoute
   '/navigator': typeof NavigatorRoute
   '/signals': typeof SignalsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -72,6 +79,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/join': typeof JoinRoute
   '/navigator': typeof NavigatorRoute
   '/signals': typeof SignalsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -83,6 +91,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/editor': typeof EditorRouteWithChildren
+  '/join': typeof JoinRoute
   '/navigator': typeof NavigatorRoute
   '/signals': typeof SignalsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -95,6 +104,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/editor'
+    | '/join'
     | '/navigator'
     | '/signals'
     | '/admin/users'
@@ -104,6 +114,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/join'
     | '/navigator'
     | '/signals'
     | '/admin/users'
@@ -114,6 +125,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/editor'
+    | '/join'
     | '/navigator'
     | '/signals'
     | '/admin/users'
@@ -125,6 +137,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
   EditorRoute: typeof EditorRouteWithChildren
+  JoinRoute: typeof JoinRoute
   NavigatorRoute: typeof NavigatorRoute
   SignalsRoute: typeof SignalsRoute
   AdminUsersRoute: typeof AdminUsersRoute
@@ -144,6 +157,13 @@ declare module '@tanstack/react-router' {
       path: '/navigator'
       fullPath: '/navigator'
       preLoaderRoute: typeof NavigatorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/join': {
+      id: '/join'
+      path: '/join'
+      fullPath: '/join'
+      preLoaderRoute: typeof JoinRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/editor': {
@@ -208,6 +228,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
   EditorRoute: EditorRouteWithChildren,
+  JoinRoute: JoinRoute,
   NavigatorRoute: NavigatorRoute,
   SignalsRoute: SignalsRoute,
   AdminUsersRoute: AdminUsersRoute,

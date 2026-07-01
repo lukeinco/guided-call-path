@@ -3,6 +3,8 @@ import {
   Outlet,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
+  useNavigate,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -10,7 +12,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { AuthProvider } from "@/lib/auth";
+import { AuthProvider, useAuth } from "@/lib/auth";
 import { ActingOrgProvider } from "@/lib/acting-org";
 
 function NotFoundComponent() {
