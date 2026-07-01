@@ -88,15 +88,16 @@ function EditorList() {
         <div>
           <h1 className="font-serif text-4xl">Scripts</h1>
           <p className="mt-1 text-xs text-muted-foreground">
-            Your org · <span className="font-mono">{auth.orgName}</span>
+            {acting.isActing ? "Acting on" : "Your org"} · <span className="font-mono">{acting.actingOrg?.name ?? auth.orgName}</span>
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Join code</p>
-          <code className="font-mono text-lg tracking-widest text-iron">{auth.joinCode}</code>
-          <p className="text-[11px] text-muted-foreground">Share this so callers can sign up into your org.</p>
-        </div>
-      </div>
+        {!acting.isActing && (
+          <div className="flex flex-col items-end gap-1">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Join code</p>
+            <code className="font-mono text-lg tracking-widest text-iron">{auth.joinCode}</code>
+            <p className="text-[11px] text-muted-foreground">Share this so callers can sign up into your org.</p>
+          </div>
+        )}
 
       <div className="mt-6 flex gap-3">
         <Button onClick={createBlank} disabled={busy} className="rounded-none">New script</Button>
