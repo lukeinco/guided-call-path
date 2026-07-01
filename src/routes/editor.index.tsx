@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { useActingOrg } from "@/lib/acting-org";
 import { Button } from "@/components/ui/button";
 import { emptyDefinition } from "@/lib/script-types";
 import { sampleDefinition, SAMPLE_SCRIPT_NAME } from "@/lib/sample-script";
