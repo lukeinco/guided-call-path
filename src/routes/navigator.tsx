@@ -92,9 +92,18 @@ function NavigatorPage() {
     setPath([entry.id]);
   }
 
-  async function endCall() {
-    if (runId)
-      await supabase.from("call_runs").update({ ended_at: new Date().toISOString() }).eq("id", runId);
+  async function endCall(opts?: {
+    disposition?: string;
+    killed_by_objection_id?: string | null;
+    ended_on_step_id?: string | null;
+  }) {
+    if (runId) {
+      const update: Record<string, unknown> = { ended_at: new Date().toISOString() };
+      if (opts?.disposition) update.disposition = opts.disposition;
+      if (opts?.killed_by_objection_id) update.killed_by_objection_id = opts.killed_by_objection_id;
+      if (opts?.ended_on_step_id) update.ended_on_step_id = opts.ended_on_step_id;
+      await supabase.from("call_runs").update(update).eq("id", runId);
+    }
     setRunId(null);
     setScenario(null);
     setPath([]);
