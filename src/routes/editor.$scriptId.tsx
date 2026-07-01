@@ -24,9 +24,9 @@ export const Route = createFileRoute("/editor/$scriptId")({
 function ScriptEditor() {
   const { scriptId } = Route.useParams();
   const navigate = useNavigate();
-  const auth = useAuth();
   const acting = useActingOrg();
   const orgId = acting.activeOrgId;
+
 
 
   const { data, isLoading } = useQuery({
