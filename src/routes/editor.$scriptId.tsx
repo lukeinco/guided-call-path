@@ -610,37 +610,46 @@ function ScriptEditor() {
         </div>
       </div>
 
-      <div className="flex-1 bg-parchment">
-        <ReactFlowProvider>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            nodeTypes={nodeTypes}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onNodeDragStop={commitPositions}
-            onNodeClick={(_, n) => setSelectedId(n.id)}
-            fitView
-            proOptions={{ hideAttribution: true }}
-            defaultEdgeOptions={{ type: "default" }}
-          >
-            <Background gap={24} size={1} color="rgba(43,43,40,0.08)" />
-            <MiniMap
-              pannable
-              zoomable
-              maskColor="rgba(245,240,232,0.7)"
-              nodeColor={(n) => {
-                const d = n.data as unknown as StepNodeData | undefined;
-                const section = d?.step?.section_type;
-                return section ? tintFor(section) : "#EAE4D8";
-              }}
-              style={{ background: "#F5F0E8", border: "1px solid rgba(43,43,40,0.15)" }}
-            />
-            <Controls showInteractive={false} />
-          </ReactFlow>
-        </ReactFlowProvider>
+      <div className="flex flex-1 overflow-hidden">
+        <div className="flex-1 bg-parchment">
+          <ReactFlowProvider>
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={nodeTypes}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onNodeDragStop={commitPositions}
+              onNodeClick={(_, n) => setSelectedId(n.id)}
+              fitView
+              proOptions={{ hideAttribution: true }}
+              defaultEdgeOptions={{ type: "default" }}
+            >
+              <Background gap={24} size={1} color="rgba(43,43,40,0.08)" />
+              <MiniMap
+                pannable
+                zoomable
+                maskColor="rgba(245,240,232,0.7)"
+                nodeColor={(n) => {
+                  const d = n.data as unknown as StepNodeData | undefined;
+                  const section = d?.step?.section_type;
+                  return section ? tintFor(section) : "#EAE4D8";
+                }}
+                style={{ background: "#F5F0E8", border: "1px solid rgba(43,43,40,0.15)" }}
+              />
+              <Controls showInteractive={false} />
+            </ReactFlow>
+          </ReactFlowProvider>
+        </div>
+
+        <ObjectionsPanel
+          definition={definition}
+          selectedStep={selectedStep}
+          updateDefinition={updateDefinition}
+        />
       </div>
+
 
       <Sheet open={!!selectedStep} onOpenChange={(o) => !o && setSelectedId(null)}>
         <SheetContent
