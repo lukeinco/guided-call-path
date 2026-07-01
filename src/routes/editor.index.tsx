@@ -23,17 +23,20 @@ interface ScriptRow {
 
 function EditorList() {
   const auth = useAuth();
+  const acting = useActingOrg();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
+  const orgId = acting.activeOrgId;
 
   const { data: scripts, isLoading } = useQuery({
-    queryKey: ["scripts", auth.orgId],
-    enabled: !!auth.orgId,
+    queryKey: ["scripts", orgId],
+    enabled: !!orgId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("scripts")
         .select("id, name, version, is_active, created_at")
+        .eq("org_id", orgId!)
         .order("name").order("version", { ascending: false });
       if (error) throw error;
       return data as ScriptRow[];
@@ -41,11 +44,11 @@ function EditorList() {
   });
 
   async function createBlank() {
-    if (!auth.orgId) return;
+    if (!orgId) return;
     setBusy(true);
     const { data, error } = await supabase
       .from("scripts")
-      .insert({ org_id: auth.orgId, name: "Untitled script", version: 1, is_active: false, definition: emptyDefinition() as unknown as never })
+      .insert({ org_id: orgId, name: "Untitled script", version: 1, is_active: false, definition: emptyDefinition() as unknown as never })
       .select("id").single();
     setBusy(false);
     if (error) return alert(error.message);
@@ -53,11 +56,11 @@ function EditorList() {
   }
 
   async function loadSample() {
-    if (!auth.orgId) return;
+    if (!orgId) return;
     setBusy(true);
     const { data, error } = await supabase
       .from("scripts")
-      .insert({ org_id: auth.orgId, name: SAMPLE_SCRIPT_NAME, version: 1, is_active: true, definition: sampleDefinition as unknown as never })
+      .insert({ org_id: orgId, name: SAMPLE_SCRIPT_NAME, version: 1, is_active: true, definition: sampleDefinition as unknown as never })
       .select("id").single();
     setBusy(false);
     if (error) return alert(error.message);
@@ -66,8 +69,9 @@ function EditorList() {
   }
 
   async function setActive(row: ScriptRow) {
+    if (!orgId) return;
     // Deactivate other versions of same name in this org, then activate this one.
-    await supabase.from("scripts").update({ is_active: false }).eq("name", row.name).neq("id", row.id);
+    await supabase.from("scripts").update({ is_active: false }).eq("org_id", orgId).eq("name", row.name).neq("id", row.id);
     await supabase.from("scripts").update({ is_active: true }).eq("id", row.id);
     qc.invalidateQueries({ queryKey: ["scripts"] });
   }
