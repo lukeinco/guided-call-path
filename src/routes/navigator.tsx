@@ -289,7 +289,7 @@ function RunnerView({
   onResumeAt: (stepId: string) => void;
   onObjectionOpened: (step: ScriptStep, obj: ScriptObjection) => void;
   onNotAccounted: (step: ScriptStep, text: string) => void;
-  onEnd: () => void;
+  onEnd: (opts?: { disposition?: string; killed_by_objection_id?: string | null; ended_on_step_id?: string | null }) => void;
 }) {
   const currentId = path[path.length - 1];
   const current = stepsById.get(currentId);
