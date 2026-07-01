@@ -26,7 +26,7 @@ function AuthPage() {
       if (!auth.orgId && auth.role !== "superadmin") {
         navigate({ to: "/join", replace: true });
       } else {
-        navigate({ to: auth.role === "admin" ? "/editor" : "/navigator", replace: true });
+        navigate({ to: isAdminish(auth.role) ? "/editor" : "/navigator", replace: true });
       }
     }
   }, [auth.loading, auth.userId, auth.orgId, auth.role, navigate]);
