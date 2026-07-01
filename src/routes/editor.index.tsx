@@ -1,11 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useActingOrg } from "@/lib/acting-org";
 import { Button } from "@/components/ui/button";
 import { emptyDefinition } from "@/lib/script-types";
 import { sampleDefinition, SAMPLE_SCRIPT_NAME } from "@/lib/sample-script";
+import { AI_BUILDER_PROMPT } from "@/lib/ai-builder-prompt";
 import { useState } from "react";
 
 export const Route = createFileRoute("/editor/")({
@@ -75,6 +77,21 @@ function EditorList() {
     await supabase.from("scripts").update({ is_active: true }).eq("id", row.id);
     qc.invalidateQueries({ queryKey: ["scripts"] });
   }
+  async function buildWithAssistant(which: "chatgpt" | "claude") {
+    try {
+      await navigator.clipboard.writeText(AI_BUILDER_PROMPT);
+      toast.success("Copied ✓", {
+        description: "Setup instructions on your clipboard. Paste into the chat and press Enter.",
+      });
+    } catch {
+      toast.error("Couldn't copy to clipboard", {
+        description: "Copy the prompt manually from the assistant tab.",
+      });
+    }
+    const url = which === "chatgpt" ? "https://chatgpt.com/" : "https://claude.ai/new";
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
 
   // Group by name
   const grouped: Record<string, ScriptRow[]> = {};
@@ -101,14 +118,35 @@ function EditorList() {
       </div>
 
 
-      <div className="mt-6 flex gap-3">
+      <div className="mt-6 flex flex-wrap gap-3">
         <Button onClick={createBlank} disabled={busy} className="rounded-none">New script</Button>
         <Button onClick={loadSample} disabled={busy} variant="outline" className="rounded-none border-foreground">
           Load sample MSP script
         </Button>
       </div>
 
+      <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-hairline pt-6">
+        <Button
+          onClick={() => buildWithAssistant("chatgpt")}
+          variant="outline"
+          className="rounded-none border-foreground"
+        >
+          Build with ChatGPT
+        </Button>
+        <Button
+          onClick={() => buildWithAssistant("claude")}
+          variant="outline"
+          className="rounded-none border-foreground"
+        >
+          Build with Claude
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          Copies setup instructions — paste into the chat, press Enter, then follow along. It hands you a JSON file to import here.
+        </p>
+      </div>
+
       <div className="mt-10 space-y-10">
+
         {isLoading && <p className="text-xs text-muted-foreground">Loading…</p>}
         {!isLoading && Object.keys(grouped).length === 0 && (
           <p className="text-sm text-muted-foreground">No scripts yet. Start with the sample or a blank one.</p>
