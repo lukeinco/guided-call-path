@@ -25,14 +25,23 @@ export interface ScriptStep {
   responses: ScriptResponse[];
 }
 
+export interface ScriptObjection {
+  id: string;
+  label: string;
+  reframe: string;
+  stages: string[];
+  resume_section: string | null;
+  resume_step_id: string | null;
+}
+
 export interface ScriptDefinition {
   steps: ScriptStep[];
-  objections?: unknown[];
+  objections?: ScriptObjection[];
   custom_section_types?: string[];
 }
 
 export function emptyDefinition(): ScriptDefinition {
-  return { steps: [] };
+  return { steps: [], objections: [] };
 }
 
 export function newStepId() {
@@ -40,6 +49,9 @@ export function newStepId() {
 }
 export function newResponseId() {
   return "r_" + Math.random().toString(36).slice(2, 9);
+}
+export function newObjectionId() {
+  return "o_" + Math.random().toString(36).slice(2, 9);
 }
 
 // Base section types available in every script. 'objection' is reserved for
