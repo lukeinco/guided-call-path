@@ -38,13 +38,13 @@ export function Gaps() {
   useEffect(() => {
     if (auth.loading) return;
     if (!auth.userId) navigate({ to: "/auth", replace: true });
-    else if (auth.role !== "admin" && auth.role !== "superadmin")
+    else if (!isAdminish(auth.role))
       navigate({ to: "/navigator", replace: true });
   }, [auth.loading, auth.userId, auth.role, navigate]);
 
   const { data: gaps, isLoading } = useQuery({
     queryKey: ["gaps", auth.orgId],
-    enabled: !!auth.userId && (auth.role === "admin" || auth.role === "superadmin"),
+    enabled: !!auth.userId && isAdminish(auth.role),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("events")
