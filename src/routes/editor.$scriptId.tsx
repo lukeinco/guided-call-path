@@ -59,6 +59,10 @@ import {
 export const Route = createFileRoute("/editor/$scriptId")({
   ssr: false,
   component: ScriptEditor,
+  validateSearch: (s: Record<string, unknown>) => ({
+    openStep: typeof s.openStep === "string" ? s.openStep : undefined,
+    addResponse: s.addResponse === 1 || s.addResponse === "1" ? 1 : undefined,
+  }),
 });
 
 const NODE_W = 280;
