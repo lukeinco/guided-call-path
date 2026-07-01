@@ -121,6 +121,21 @@ function AuthPage() {
           </Button>
         </form>
 
+        <div className="mt-4 flex items-center gap-3">
+          <div className="h-px flex-1 bg-hairline" />
+          <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">or</span>
+          <div className="h-px flex-1 bg-hairline" />
+        </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleGoogle}
+          className="mt-4 w-full rounded-none border-foreground/40"
+        >
+          Continue with Google
+        </Button>
+
         <button
           onClick={() => { setError(null); setMode(mode === "signin" ? "signup" : "signin"); }}
           className="mt-6 text-xs uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
