@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { useActingOrg } from "@/lib/acting-org";
 import { Button } from "@/components/ui/button";
 import { emptyDefinition } from "@/lib/script-types";
 import { sampleDefinition, SAMPLE_SCRIPT_NAME } from "@/lib/sample-script";
@@ -22,17 +23,20 @@ interface ScriptRow {
 
 function EditorList() {
   const auth = useAuth();
+  const acting = useActingOrg();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
+  const orgId = acting.activeOrgId;
 
   const { data: scripts, isLoading } = useQuery({
-    queryKey: ["scripts", auth.orgId],
-    enabled: !!auth.orgId,
+    queryKey: ["scripts", orgId],
+    enabled: !!orgId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("scripts")
         .select("id, name, version, is_active, created_at")
+        .eq("org_id", orgId!)
         .order("name").order("version", { ascending: false });
       if (error) throw error;
       return data as ScriptRow[];
@@ -40,11 +44,11 @@ function EditorList() {
   });
 
   async function createBlank() {
-    if (!auth.orgId) return;
+    if (!orgId) return;
     setBusy(true);
     const { data, error } = await supabase
       .from("scripts")
-      .insert({ org_id: auth.orgId, name: "Untitled script", version: 1, is_active: false, definition: emptyDefinition() as unknown as never })
+      .insert({ org_id: orgId, name: "Untitled script", version: 1, is_active: false, definition: emptyDefinition() as unknown as never })
       .select("id").single();
     setBusy(false);
     if (error) return alert(error.message);
@@ -52,11 +56,11 @@ function EditorList() {
   }
 
   async function loadSample() {
-    if (!auth.orgId) return;
+    if (!orgId) return;
     setBusy(true);
     const { data, error } = await supabase
       .from("scripts")
-      .insert({ org_id: auth.orgId, name: SAMPLE_SCRIPT_NAME, version: 1, is_active: true, definition: sampleDefinition as unknown as never })
+      .insert({ org_id: orgId, name: SAMPLE_SCRIPT_NAME, version: 1, is_active: true, definition: sampleDefinition as unknown as never })
       .select("id").single();
     setBusy(false);
     if (error) return alert(error.message);
@@ -65,8 +69,9 @@ function EditorList() {
   }
 
   async function setActive(row: ScriptRow) {
+    if (!orgId) return;
     // Deactivate other versions of same name in this org, then activate this one.
-    await supabase.from("scripts").update({ is_active: false }).eq("name", row.name).neq("id", row.id);
+    await supabase.from("scripts").update({ is_active: false }).eq("org_id", orgId).eq("name", row.name).neq("id", row.id);
     await supabase.from("scripts").update({ is_active: true }).eq("id", row.id);
     qc.invalidateQueries({ queryKey: ["scripts"] });
   }
@@ -83,15 +88,18 @@ function EditorList() {
         <div>
           <h1 className="font-serif text-4xl">Scripts</h1>
           <p className="mt-1 text-xs text-muted-foreground">
-            Your org · <span className="font-mono">{auth.orgName}</span>
+            {acting.isActing ? "Acting on" : "Your org"} · <span className="font-mono">{acting.actingOrg?.name ?? auth.orgName}</span>
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Join code</p>
-          <code className="font-mono text-lg tracking-widest text-iron">{auth.joinCode}</code>
-          <p className="text-[11px] text-muted-foreground">Share this so callers can sign up into your org.</p>
-        </div>
+        {!acting.isActing && (
+          <div className="flex flex-col items-end gap-1">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Join code</p>
+            <code className="font-mono text-lg tracking-widest text-iron">{auth.joinCode}</code>
+            <p className="text-[11px] text-muted-foreground">Share this so callers can sign up into your org.</p>
+          </div>
+        )}
       </div>
+
 
       <div className="mt-6 flex gap-3">
         <Button onClick={createBlank} disabled={busy} className="rounded-none">New script</Button>

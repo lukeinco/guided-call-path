@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export type AppRole = "admin" | "caller";
+export type AppRole = "admin" | "caller" | "superadmin";
 
 interface AuthState {
   loading: boolean;
@@ -40,9 +40,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       supabase.from("profiles").select("org_id, display_name, orgs(name, join_code)").eq("id", user.id).maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", user.id),
     ]);
-    const role: AppRole | null = roles?.some((r: { role: string }) => r.role === "admin")
+    const roleList = (roles ?? []).map((r: { role: string }) => r.role);
+    const role: AppRole | null = roleList.includes("superadmin")
+      ? "superadmin"
+      : roleList.includes("admin")
       ? "admin"
-      : roles?.some((r: { role: string }) => r.role === "caller")
+      : roleList.includes("caller")
       ? "caller"
       : null;
     const org = (profile as { orgs?: { name: string; join_code: string } | null } | null)?.orgs ?? null;

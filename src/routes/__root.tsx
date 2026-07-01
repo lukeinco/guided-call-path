@@ -11,6 +11,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "@/lib/auth";
+import { ActingOrgProvider } from "@/lib/acting-org";
 
 function NotFoundComponent() {
   return (
@@ -93,7 +94,9 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Outlet />
+        <ActingOrgProvider>
+          <Outlet />
+        </ActingOrgProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

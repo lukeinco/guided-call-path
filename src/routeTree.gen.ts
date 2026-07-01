@@ -16,6 +16,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EditorIndexRouteImport } from './routes/editor.index'
 import { Route as EditorScriptIdRouteImport } from './routes/editor.$scriptId'
+import { Route as AdminUsersRouteImport } from './routes/admin.users'
 
 const SignalsRoute = SignalsRouteImport.update({
   id: '/signals',
@@ -52,6 +53,11 @@ const EditorScriptIdRoute = EditorScriptIdRouteImport.update({
   path: '/$scriptId',
   getParentRoute: () => EditorRoute,
 } as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/admin/users',
+  path: '/admin/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/editor': typeof EditorRouteWithChildren
   '/navigator': typeof NavigatorRoute
   '/signals': typeof SignalsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/editor/$scriptId': typeof EditorScriptIdRoute
   '/editor/': typeof EditorIndexRoute
 }
@@ -67,6 +74,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/navigator': typeof NavigatorRoute
   '/signals': typeof SignalsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/editor/$scriptId': typeof EditorScriptIdRoute
   '/editor': typeof EditorIndexRoute
 }
@@ -77,6 +85,7 @@ export interface FileRoutesById {
   '/editor': typeof EditorRouteWithChildren
   '/navigator': typeof NavigatorRoute
   '/signals': typeof SignalsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/editor/$scriptId': typeof EditorScriptIdRoute
   '/editor/': typeof EditorIndexRoute
 }
@@ -88,6 +97,7 @@ export interface FileRouteTypes {
     | '/editor'
     | '/navigator'
     | '/signals'
+    | '/admin/users'
     | '/editor/$scriptId'
     | '/editor/'
   fileRoutesByTo: FileRoutesByTo
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/navigator'
     | '/signals'
+    | '/admin/users'
     | '/editor/$scriptId'
     | '/editor'
   id:
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
     | '/editor'
     | '/navigator'
     | '/signals'
+    | '/admin/users'
     | '/editor/$scriptId'
     | '/editor/'
   fileRoutesById: FileRoutesById
@@ -115,6 +127,7 @@ export interface RootRouteChildren {
   EditorRoute: typeof EditorRouteWithChildren
   NavigatorRoute: typeof NavigatorRoute
   SignalsRoute: typeof SignalsRoute
+  AdminUsersRoute: typeof AdminUsersRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -168,6 +181,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EditorScriptIdRouteImport
       parentRoute: typeof EditorRoute
     }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/admin/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -190,6 +210,7 @@ const rootRouteChildren: RootRouteChildren = {
   EditorRoute: EditorRouteWithChildren,
   NavigatorRoute: NavigatorRoute,
   SignalsRoute: SignalsRoute,
+  AdminUsersRoute: AdminUsersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
