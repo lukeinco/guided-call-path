@@ -878,3 +878,345 @@ function ResponseRow({
     </div>
   );
 }
+
+// ---------- Objections panel ----------
+
+const STRATEGY_BY_SECTION: Record<
+  string,
+  { note: string; defaultResume: string }
+> = {
+  pre_qualifying: {
+    note: "An objection here means you haven't earned the meeting. Go back UP — resume at another pain point or question.",
+    defaultResume: "pain_points",
+  },
+  pain_points: {
+    note: "They're resisting but you're close. Reframe toward the MEETING, not the sale.",
+    defaultResume: "building_interest",
+  },
+  close: {
+    note: "'Not ready' isn't 'no.' Drop back to a pain point or pencil a month out.",
+    defaultResume: "pain_points",
+  },
+  gatekeeper_intro: {
+    note: "This is about ACCESS, not the offer. Resume in-stage — name, callback, transfer.",
+    defaultResume: "gatekeeper_intro",
+  },
+};
+
+function ObjectionsPanel({
+  definition,
+  selectedStep,
+  updateDefinition,
+}: {
+  definition: ScriptDefinition;
+  selectedStep: ScriptStep | null;
+  updateDefinition: (u: (d: ScriptDefinition) => ScriptDefinition) => void;
+}) {
+  const objections = definition.objections ?? [];
+  const [openId, setOpenId] = useState<string | null>(null);
+  const allSections = useMemo(() => {
+    const custom = definition.custom_section_types ?? [];
+    return [...BASE_SECTION_TYPES, ...custom];
+  }, [definition.custom_section_types]);
+
+  const selectedSection = selectedStep?.section_type ?? null;
+  const strategy = selectedSection ? STRATEGY_BY_SECTION[selectedSection] : null;
+
+  function addObjection() {
+    const id = newObjectionId();
+    const stages = selectedSection ? [selectedSection] : [];
+    const resume_section = strategy?.defaultResume ?? null;
+    const next: ScriptObjection = {
+      id,
+      label: "",
+      reframe: "",
+      stages,
+      resume_section,
+      resume_step_id: null,
+    };
+    updateDefinition((d) => ({ ...d, objections: [...(d.objections ?? []), next] }));
+    setOpenId(id);
+  }
+
+  function updateObjection(id: string, patch: Partial<ScriptObjection>) {
+    updateDefinition((d) => ({
+      ...d,
+      objections: (d.objections ?? []).map((o) => (o.id === id ? { ...o, ...patch } : o)),
+    }));
+  }
+
+  function deleteObjection(id: string) {
+    updateDefinition((d) => ({
+      ...d,
+      objections: (d.objections ?? []).filter((o) => o.id !== id),
+    }));
+    if (openId === id) setOpenId(null);
+  }
+
+  return (
+    <aside className="w-[340px] shrink-0 overflow-y-auto border-l border-hairline bg-parchment/60">
+      <div className="border-b border-hairline px-4 py-3">
+        <div className="flex items-center justify-between">
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+            Objections
+          </p>
+          <button
+            type="button"
+            onClick={addObjection}
+            className="text-[10px] uppercase tracking-[0.16em] text-iron hover:underline"
+          >
+            + Add objection
+          </button>
+        </div>
+        <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+          Authored off the graph. The runner surfaces these by stage.
+        </p>
+      </div>
+
+      {selectedStep && strategy && (
+        <div className="mx-4 mt-3 border border-iron/40 bg-iron/5 px-3 py-2">
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-iron">
+            Strategy · {SECTION_TYPE_LABEL[selectedSection!] ?? selectedSection}
+          </p>
+          <p className="mt-1 font-serif text-[13px] leading-snug text-foreground">
+            {strategy.note}
+          </p>
+          <p className="mt-1 text-[10px] text-muted-foreground">
+            New objections default to resume at{" "}
+            <span className="font-mono">{strategy.defaultResume}</span>.
+          </p>
+        </div>
+      )}
+
+      <div className="space-y-2 p-4">
+        {objections.length === 0 && (
+          <p className="text-xs italic text-muted-foreground">
+            No objections yet. Prepare the 5–10 you hear most.
+          </p>
+        )}
+        {objections.map((o) => {
+          const isOpen = openId === o.id;
+          return (
+            <div key={o.id} className="border border-hairline bg-parchment">
+              <button
+                type="button"
+                onClick={() => setOpenId(isOpen ? null : o.id)}
+                className="flex w-full items-start justify-between gap-2 px-3 py-2 text-left"
+              >
+                <span className="font-serif text-sm text-foreground">
+                  {o.label || <span className="italic text-muted-foreground">Untitled objection</span>}
+                </span>
+                <span className="mt-1 font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
+                  {o.stages.length} stage{o.stages.length === 1 ? "" : "s"}
+                </span>
+              </button>
+
+              {isOpen && (
+                <div className="space-y-3 border-t border-hairline px-3 py-3">
+                  <div>
+                    <label className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
+                      They say
+                    </label>
+                    <Input
+                      value={o.label}
+                      onChange={(e) => updateObjection(o.id, { label: e.target.value })}
+                      placeholder="e.g. We already have someone."
+                      className="mt-1 rounded-none border-hairline bg-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
+                      Reframe
+                    </label>
+                    <Textarea
+                      value={o.reframe}
+                      onChange={(e) => updateObjection(o.id, { reframe: e.target.value })}
+                      placeholder="What the caller says back."
+                      className="mt-1 min-h-[80px] rounded-none border-hairline bg-transparent font-serif text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <p className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
+                      Relevant stages
+                    </p>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {allSections.map((s) => {
+                        const on = o.stages.includes(s);
+                        return (
+                          <button
+                            key={s}
+                            type="button"
+                            onClick={() =>
+                              updateObjection(o.id, {
+                                stages: on
+                                  ? o.stages.filter((x) => x !== s)
+                                  : [...o.stages, s],
+                              })
+                            }
+                            className="border px-2 py-0.5 text-[10px]"
+                            style={{
+                              borderColor: on ? "#C44A18" : "rgba(43,43,40,0.2)",
+                              background: on ? "rgba(196,74,24,0.08)" : "transparent",
+                              color: on ? "#C44A18" : "#2B2B28",
+                            }}
+                          >
+                            {SECTION_TYPE_LABEL[s] ?? s}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
+                        Resume section
+                      </label>
+                      <Select
+                        value={o.resume_section ?? "__none"}
+                        onValueChange={(v) =>
+                          updateObjection(o.id, {
+                            resume_section: v === "__none" ? null : v,
+                          })
+                        }
+                      >
+                        <SelectTrigger className="mt-1 rounded-none">
+                          <SelectValue placeholder="Section" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none">None</SelectItem>
+                          <SelectGroup>
+                            <SelectLabel className="text-[10px] uppercase tracking-[0.16em]">
+                              Sections
+                            </SelectLabel>
+                            {allSections.map((s) => (
+                              <SelectItem key={s} value={s}>
+                                {SECTION_TYPE_LABEL[s] ?? s}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
+                        Pin step (optional)
+                      </label>
+                      <Select
+                        value={o.resume_step_id ?? "__none"}
+                        onValueChange={(v) =>
+                          updateObjection(o.id, {
+                            resume_step_id: v === "__none" ? null : v,
+                          })
+                        }
+                      >
+                        <SelectTrigger className="mt-1 rounded-none">
+                          <SelectValue placeholder="Any" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none">Any (use section)</SelectItem>
+                          {definition.steps.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>
+                              {truncate(s.caller_line || s.id, 40)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Resumes at:{" "}
+                    <span className="font-mono">
+                      {o.resume_step_id
+                        ? `step ${o.resume_step_id}`
+                        : o.resume_section ?? "—"}
+                    </span>
+                    {o.resume_step_id && o.resume_section && (
+                      <span className="opacity-60"> (pin overrides section)</span>
+                    )}
+                  </p>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => deleteObjection(o.id)}
+                      className="flex items-center gap-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground hover:text-iron"
+                    >
+                      <X className="h-3 w-3" /> Delete
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </aside>
+  );
+}
+
+// ---------- Cold-call principles reference ----------
+
+function PrinciplesButton() {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="rounded-none border-foreground">
+          <BookOpen className="mr-1 h-3.5 w-3.5" /> Principles
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-xl rounded-none border-hairline bg-parchment">
+        <DialogHeader>
+          <DialogTitle className="font-serif text-2xl">Cold-call principles</DialogTitle>
+        </DialogHeader>
+        <ul className="mt-2 space-y-3 font-serif text-[15px] leading-snug text-foreground">
+          <li>
+            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-iron">
+              Goal
+            </span>
+            <p>The immediate goal is the MEETING, not the sale.</p>
+          </li>
+          <li>
+            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-iron">
+              Talk time
+            </span>
+            <p>Aim for 80/20 toward the prospect. If you're talking, you're losing.</p>
+          </li>
+          <li>
+            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-iron">
+              Voice
+            </span>
+            <p>Don't sound like a rep in the first 20 seconds. Peer, not pitch.</p>
+          </li>
+          <li>
+            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-iron">
+              Opener
+            </span>
+            <p>
+              Use "have I caught you in the middle of anything" — never "are you busy." One
+              disarms, the other signals low value.
+            </p>
+          </li>
+          <li>
+            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-iron">
+              Objections
+            </span>
+            <p>
+              Objections to buying aren't objections to meeting. Reframe toward the meeting.
+            </p>
+          </li>
+          <li>
+            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-iron">
+              Preparation
+            </span>
+            <p>
+              You face the same 5–10 objections repeatedly. Prepare them — that's what the
+              Objections panel is for.
+            </p>
+          </li>
+        </ul>
+      </DialogContent>
+    </Dialog>
+  );
+}
