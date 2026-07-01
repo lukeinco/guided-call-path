@@ -438,6 +438,127 @@ function ScriptEditor() {
     setDirty(true);
   }, []);
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importSummary, setImportSummary] = useState<{
+    stepCount: number;
+    objectionCount: number;
+    unreachable: { id: string; caller_line: string }[];
+  } | null>(null);
+
+  const exportJson = useCallback(() => {
+    const payload = {
+      steps: definition.steps,
+      objections: definition.objections ?? [],
+      custom_section_types: definition.custom_section_types ?? [],
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const safeName = (name || "script").replace(/[^a-z0-9-_]+/gi, "_").toLowerCase();
+    a.href = url;
+    a.download = `${safeName}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [definition, name]);
+
+  const handleImportFile = useCallback(
+    async (file: File) => {
+      setImportError(null);
+      setImportSummary(null);
+      let parsed: unknown;
+      try {
+        const text = await file.text();
+        parsed = JSON.parse(text);
+      } catch (e) {
+        setImportError(`Could not parse file as JSON: ${e instanceof Error ? e.message : "unknown error"}`);
+        return;
+      }
+      if (!parsed || typeof parsed !== "object") {
+        setImportError("File does not contain a script definition object.");
+        return;
+      }
+      const p = parsed as Partial<ScriptDefinition>;
+      if (!Array.isArray(p.steps)) {
+        setImportError("Missing or invalid `steps` array.");
+        return;
+      }
+      const steps = p.steps as ScriptStep[];
+      const stepIds = new Set<string>();
+      for (const s of steps) {
+        if (!s || typeof s.id !== "string" || typeof s.caller_line !== "string" || !Array.isArray(s.responses)) {
+          setImportError(`Invalid step shape (id: ${s?.id ?? "?"}). Each step needs id, caller_line, responses.`);
+          return;
+        }
+        if (stepIds.has(s.id)) {
+          setImportError(`Duplicate step id: ${s.id}`);
+          return;
+        }
+        stepIds.add(s.id);
+      }
+      // Validate responses
+      for (const s of steps) {
+        for (const r of s.responses) {
+          if (!r || typeof r.id !== "string" || typeof r.label !== "string") {
+            setImportError(`Invalid response in step ${s.id}.`);
+            return;
+          }
+          if (r.next_step_id != null && !stepIds.has(r.next_step_id)) {
+            setImportError(
+              `Response "${r.label || r.id}" in step ${s.id} points to unknown step id "${r.next_step_id}".`,
+            );
+            return;
+          }
+        }
+      }
+      // Validate objections
+      const objections = Array.isArray(p.objections) ? (p.objections as ScriptObjection[]) : [];
+      for (const o of objections) {
+        if (!o || typeof o.id !== "string" || typeof o.label !== "string") {
+          setImportError(`Invalid objection shape (id: ${o?.id ?? "?"}).`);
+          return;
+        }
+        if (o.resume_step_id != null && !stepIds.has(o.resume_step_id)) {
+          setImportError(
+            `Objection "${o.label || o.id}" resumes at unknown step id "${o.resume_step_id}".`,
+          );
+          return;
+        }
+      }
+      const customTypes = Array.isArray(p.custom_section_types)
+        ? (p.custom_section_types as string[]).filter((v) => typeof v === "string")
+        : [];
+
+      // Compute unreachable steps: no incoming edge, not is_entry
+      const incoming = new Set<string>();
+      for (const s of steps) {
+        for (const r of s.responses) {
+          if (r.next_step_id) incoming.add(r.next_step_id);
+        }
+      }
+      const unreachable = steps
+        .filter((s) => !s.is_entry && !incoming.has(s.id))
+        .map((s) => ({ id: s.id, caller_line: s.caller_line }));
+
+      const nextDef: ScriptDefinition = {
+        steps,
+        objections,
+        custom_section_types: customTypes,
+      };
+      setDefinition(nextDef);
+      setDirty(true);
+      setSelectedId(null);
+      setImportSummary({
+        stepCount: steps.length,
+        objectionCount: objections.length,
+        unreachable,
+      });
+    },
+    [],
+  );
+
   const updateStep = useCallback(
     (id: string, patch: Partial<ScriptStep> | ((s: ScriptStep) => ScriptStep)) => {
       updateDefinition((d) => ({
