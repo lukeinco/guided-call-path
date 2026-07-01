@@ -77,6 +77,21 @@ function EditorList() {
     await supabase.from("scripts").update({ is_active: true }).eq("id", row.id);
     qc.invalidateQueries({ queryKey: ["scripts"] });
   }
+  async function buildWithAssistant(which: "chatgpt" | "claude") {
+    try {
+      await navigator.clipboard.writeText(AI_BUILDER_PROMPT);
+      toast.success("Copied ✓", {
+        description: "Setup instructions on your clipboard. Paste into the chat and press Enter.",
+      });
+    } catch {
+      toast.error("Couldn't copy to clipboard", {
+        description: "Copy the prompt manually from the assistant tab.",
+      });
+    }
+    const url = which === "chatgpt" ? "https://chatgpt.com/" : "https://claude.ai/new";
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
 
   // Group by name
   const grouped: Record<string, ScriptRow[]> = {};
