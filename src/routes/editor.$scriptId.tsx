@@ -393,6 +393,29 @@ function ScriptEditor() {
     }
   }, [data]);
 
+  const search = Route.useSearch();
+  const deepLinkAppliedRef = useRef(false);
+  useEffect(() => {
+    if (!loadedRef.current || deepLinkAppliedRef.current) return;
+    if (!search.openStep) return;
+    const target = definition.steps.find((s) => s.id === search.openStep);
+    if (!target) return;
+    deepLinkAppliedRef.current = true;
+    if (search.addResponse === 1 && target.responses.every((r) => r.label.trim() !== "")) {
+      // Seed a blank response row so the admin can fill in the missed branch.
+      updateDefinition((d) => ({
+        ...d,
+        steps: d.steps.map((s) =>
+          s.id === target.id
+            ? { ...s, responses: [...s.responses, { id: newResponseId(), label: "", next_step_id: null }] }
+            : s,
+        ),
+      }));
+    }
+    setSelectedId(target.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [definition, search.openStep, search.addResponse]);
+
   // Autosave (definition + name) — debounced, no version bump.
   useEffect(() => {
     if (!loadedRef.current || !dirty) return;
