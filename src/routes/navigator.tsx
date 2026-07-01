@@ -593,6 +593,92 @@ function RunnerView({
       </div>
 
       <p className="mt-4 text-center text-[10px] text-muted-foreground">Script: {script.name}</p>
+
+      {endStage === "confirming" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full border border-iron text-iron">
+              <Check className="h-8 w-8" />
+            </div>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Call ended</p>
+          </div>
+        </div>
+      )}
+
+      <Dialog
+        open={endStage === "dialog"}
+        onOpenChange={(o) => {
+          if (!o) setEndStage("idle");
+        }}
+      >
+        <DialogContent className="rounded-none border-hairline sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-2xl">How'd it go?</DialogTitle>
+            <DialogDescription className="font-mono text-[11px] uppercase tracking-[0.18em]">
+              Pick one — ties this call to where in the script it ended.
+            </DialogDescription>
+          </DialogHeader>
+
+          <RadioGroup value={disposition} onValueChange={setDisposition} className="mt-2 space-y-2">
+            {[
+              ["meeting_booked", "Meeting booked"],
+              ["callback_scheduled", "Callback scheduled"],
+              ["interested_no_commitment", "Interested — no commitment"],
+              ["objection_unbeat", "Not interested — objection I couldn't beat"],
+              ["not_a_fit", "Not interested — not a fit"],
+              ["gatekeeper_wall", "Gatekeeper wall (never reached the decision-maker)"],
+              ["no_answer", "No answer / voicemail"],
+              ["wrong_number", "Wrong number / bad data"],
+            ].map(([value, label]) => (
+              <div
+                key={value}
+                className="flex items-center gap-3 border border-hairline px-3 py-2 hover:border-foreground"
+              >
+                <RadioGroupItem value={value} id={`disp-${value}`} />
+                <Label htmlFor={`disp-${value}`} className="flex-1 cursor-pointer text-sm font-normal">
+                  {label}
+                </Label>
+              </div>
+            ))}
+          </RadioGroup>
+
+          {disposition === "objection_unbeat" && (
+            <div className="mt-2">
+              <label className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                Which objection?
+              </label>
+              <Select value={killedByObjectionId} onValueChange={setKilledByObjectionId}>
+                <SelectTrigger className="mt-1 rounded-none border-hairline">
+                  <SelectValue placeholder="Pick an objection" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allObjections.length === 0 && (
+                    <div className="px-3 py-2 text-xs text-muted-foreground">No objections authored.</div>
+                  )}
+                  {allObjections.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <DialogFooter className="mt-4">
+            <Button variant="ghost" className="rounded-none" onClick={() => setEndStage("idle")}>
+              Cancel
+            </Button>
+            <Button
+              onClick={submitDisposition}
+              disabled={!disposition || (disposition === "objection_unbeat" && !killedByObjectionId)}
+              className="rounded-none"
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
