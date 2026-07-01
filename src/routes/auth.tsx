@@ -23,9 +23,27 @@ function AuthPage() {
 
   useEffect(() => {
     if (!auth.loading && auth.userId) {
-      navigate({ to: auth.role === "admin" ? "/editor" : "/navigator", replace: true });
+      if (!auth.orgId && auth.role !== "superadmin") {
+        navigate({ to: "/join", replace: true });
+      } else {
+        navigate({ to: auth.role === "admin" ? "/editor" : "/navigator", replace: true });
+      }
     }
-  }, [auth.loading, auth.userId, auth.role, navigate]);
+  }, [auth.loading, auth.userId, auth.orgId, auth.role, navigate]);
+
+  async function handleGoogle() {
+    setError(null);
+    // NOTE: For a Google login to merge with a prior email/password account on
+    // the same address into ONE user, enable "Link identities with same email"
+    // in the Supabase dashboard under Authentication → Settings. Without it,
+    // Supabase creates a distinct user for the Google identity.
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin },
+    });
+    if (error) setError(error.message);
+  }
+
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
