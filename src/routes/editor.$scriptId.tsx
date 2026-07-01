@@ -751,6 +751,31 @@ function ScriptEditor() {
               >
                 Auto-arrange
               </Button>
+              <Button
+                onClick={exportJson}
+                variant="outline"
+                className="rounded-none border-foreground"
+              >
+                <Download className="mr-1 h-3.5 w-3.5" /> Export JSON
+              </Button>
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                variant="outline"
+                className="rounded-none border-foreground"
+              >
+                <Upload className="mr-1 h-3.5 w-3.5" /> Import JSON
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleImportFile(f);
+                  e.target.value = "";
+                }}
+              />
               <PrinciplesButton />
               <Button onClick={publish} disabled={publishing} className="rounded-none">
                 {publishing ? "Publishing…" : "Publish new version"}
@@ -759,6 +784,61 @@ function ScriptEditor() {
           </div>
         </div>
       </div>
+
+      <Dialog open={!!importError} onOpenChange={(o) => !o && setImportError(null)}>
+        <DialogContent className="rounded-none">
+          <DialogHeader>
+            <DialogTitle>Import failed</DialogTitle>
+          </DialogHeader>
+          <Alert variant="destructive" className="rounded-none">
+            <AlertTitle>Validation error</AlertTitle>
+            <AlertDescription>{importError}</AlertDescription>
+          </Alert>
+          <p className="text-xs text-muted-foreground">
+            The current draft was not modified.
+          </p>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!importSummary} onOpenChange={(o) => !o && setImportSummary(null)}>
+        <DialogContent className="rounded-none">
+          <DialogHeader>
+            <DialogTitle>Import complete</DialogTitle>
+          </DialogHeader>
+          {importSummary && (
+            <div className="space-y-3 text-sm">
+              <p>
+                Imported {importSummary.stepCount} step
+                {importSummary.stepCount === 1 ? "" : "s"} and {importSummary.objectionCount} objection
+                {importSummary.objectionCount === 1 ? "" : "s"}.
+              </p>
+              {importSummary.unreachable.length > 0 ? (
+                <Alert className="rounded-none">
+                  <AlertTitle>
+                    {importSummary.unreachable.length} unreachable step
+                    {importSummary.unreachable.length === 1 ? "" : "s"}
+                  </AlertTitle>
+                  <AlertDescription>
+                    <ul className="mt-2 list-disc space-y-1 pl-4">
+                      {importSummary.unreachable.map((s) => (
+                        <li key={s.id}>
+                          <span className="font-mono text-[11px] opacity-70">{s.id}</span>{" "}
+                          — {truncate(s.caller_line, 80) || <em>empty</em>}
+                        </li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <p className="text-muted-foreground">All steps are reachable.</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Changes are autosaved to the current draft. Publish to create a new version.
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <div className="flex flex-1 overflow-hidden">
         <div className="flex-1 bg-parchment">
