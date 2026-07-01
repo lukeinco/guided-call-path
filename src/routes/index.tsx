@@ -13,7 +13,7 @@ function Index() {
   useEffect(() => {
     if (auth.loading) return;
     if (!auth.userId) navigate({ to: "/auth", replace: true });
-    else if (auth.role === "admin") navigate({ to: "/editor", replace: true });
+    else if (isAdminish(auth.role)) navigate({ to: "/editor", replace: true });
     else navigate({ to: "/navigator", replace: true });
   }, [auth.loading, auth.userId, auth.role, navigate]);
   return (
