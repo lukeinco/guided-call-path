@@ -19,7 +19,8 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import dagre from "dagre";
-import { Info, Trash2, Plus, BookOpen, X } from "lucide-react";
+import { Info, Trash2, Plus, BookOpen, X, Download, Upload } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useActingOrg } from "@/lib/acting-org";
 import { Button } from "@/components/ui/button";
@@ -437,6 +438,127 @@ function ScriptEditor() {
     setDirty(true);
   }, []);
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importSummary, setImportSummary] = useState<{
+    stepCount: number;
+    objectionCount: number;
+    unreachable: { id: string; caller_line: string }[];
+  } | null>(null);
+
+  const exportJson = useCallback(() => {
+    const payload = {
+      steps: definition.steps,
+      objections: definition.objections ?? [],
+      custom_section_types: definition.custom_section_types ?? [],
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const safeName = (name || "script").replace(/[^a-z0-9-_]+/gi, "_").toLowerCase();
+    a.href = url;
+    a.download = `${safeName}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [definition, name]);
+
+  const handleImportFile = useCallback(
+    async (file: File) => {
+      setImportError(null);
+      setImportSummary(null);
+      let parsed: unknown;
+      try {
+        const text = await file.text();
+        parsed = JSON.parse(text);
+      } catch (e) {
+        setImportError(`Could not parse file as JSON: ${e instanceof Error ? e.message : "unknown error"}`);
+        return;
+      }
+      if (!parsed || typeof parsed !== "object") {
+        setImportError("File does not contain a script definition object.");
+        return;
+      }
+      const p = parsed as Partial<ScriptDefinition>;
+      if (!Array.isArray(p.steps)) {
+        setImportError("Missing or invalid `steps` array.");
+        return;
+      }
+      const steps = p.steps as ScriptStep[];
+      const stepIds = new Set<string>();
+      for (const s of steps) {
+        if (!s || typeof s.id !== "string" || typeof s.caller_line !== "string" || !Array.isArray(s.responses)) {
+          setImportError(`Invalid step shape (id: ${s?.id ?? "?"}). Each step needs id, caller_line, responses.`);
+          return;
+        }
+        if (stepIds.has(s.id)) {
+          setImportError(`Duplicate step id: ${s.id}`);
+          return;
+        }
+        stepIds.add(s.id);
+      }
+      // Validate responses
+      for (const s of steps) {
+        for (const r of s.responses) {
+          if (!r || typeof r.id !== "string" || typeof r.label !== "string") {
+            setImportError(`Invalid response in step ${s.id}.`);
+            return;
+          }
+          if (r.next_step_id != null && !stepIds.has(r.next_step_id)) {
+            setImportError(
+              `Response "${r.label || r.id}" in step ${s.id} points to unknown step id "${r.next_step_id}".`,
+            );
+            return;
+          }
+        }
+      }
+      // Validate objections
+      const objections = Array.isArray(p.objections) ? (p.objections as ScriptObjection[]) : [];
+      for (const o of objections) {
+        if (!o || typeof o.id !== "string" || typeof o.label !== "string") {
+          setImportError(`Invalid objection shape (id: ${o?.id ?? "?"}).`);
+          return;
+        }
+        if (o.resume_step_id != null && !stepIds.has(o.resume_step_id)) {
+          setImportError(
+            `Objection "${o.label || o.id}" resumes at unknown step id "${o.resume_step_id}".`,
+          );
+          return;
+        }
+      }
+      const customTypes = Array.isArray(p.custom_section_types)
+        ? (p.custom_section_types as string[]).filter((v) => typeof v === "string")
+        : [];
+
+      // Compute unreachable steps: no incoming edge, not is_entry
+      const incoming = new Set<string>();
+      for (const s of steps) {
+        for (const r of s.responses) {
+          if (r.next_step_id) incoming.add(r.next_step_id);
+        }
+      }
+      const unreachable = steps
+        .filter((s) => !s.is_entry && !incoming.has(s.id))
+        .map((s) => ({ id: s.id, caller_line: s.caller_line }));
+
+      const nextDef: ScriptDefinition = {
+        steps,
+        objections,
+        custom_section_types: customTypes,
+      };
+      setDefinition(nextDef);
+      setDirty(true);
+      setSelectedId(null);
+      setImportSummary({
+        stepCount: steps.length,
+        objectionCount: objections.length,
+        unreachable,
+      });
+    },
+    [],
+  );
+
   const updateStep = useCallback(
     (id: string, patch: Partial<ScriptStep> | ((s: ScriptStep) => ScriptStep)) => {
       updateDefinition((d) => ({
@@ -629,6 +751,31 @@ function ScriptEditor() {
               >
                 Auto-arrange
               </Button>
+              <Button
+                onClick={exportJson}
+                variant="outline"
+                className="rounded-none border-foreground"
+              >
+                <Download className="mr-1 h-3.5 w-3.5" /> Export JSON
+              </Button>
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                variant="outline"
+                className="rounded-none border-foreground"
+              >
+                <Upload className="mr-1 h-3.5 w-3.5" /> Import JSON
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleImportFile(f);
+                  e.target.value = "";
+                }}
+              />
               <PrinciplesButton />
               <Button onClick={publish} disabled={publishing} className="rounded-none">
                 {publishing ? "Publishing…" : "Publish new version"}
@@ -637,6 +784,61 @@ function ScriptEditor() {
           </div>
         </div>
       </div>
+
+      <Dialog open={!!importError} onOpenChange={(o) => !o && setImportError(null)}>
+        <DialogContent className="rounded-none">
+          <DialogHeader>
+            <DialogTitle>Import failed</DialogTitle>
+          </DialogHeader>
+          <Alert variant="destructive" className="rounded-none">
+            <AlertTitle>Validation error</AlertTitle>
+            <AlertDescription>{importError}</AlertDescription>
+          </Alert>
+          <p className="text-xs text-muted-foreground">
+            The current draft was not modified.
+          </p>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!importSummary} onOpenChange={(o) => !o && setImportSummary(null)}>
+        <DialogContent className="rounded-none">
+          <DialogHeader>
+            <DialogTitle>Import complete</DialogTitle>
+          </DialogHeader>
+          {importSummary && (
+            <div className="space-y-3 text-sm">
+              <p>
+                Imported {importSummary.stepCount} step
+                {importSummary.stepCount === 1 ? "" : "s"} and {importSummary.objectionCount} objection
+                {importSummary.objectionCount === 1 ? "" : "s"}.
+              </p>
+              {importSummary.unreachable.length > 0 ? (
+                <Alert className="rounded-none">
+                  <AlertTitle>
+                    {importSummary.unreachable.length} unreachable step
+                    {importSummary.unreachable.length === 1 ? "" : "s"}
+                  </AlertTitle>
+                  <AlertDescription>
+                    <ul className="mt-2 list-disc space-y-1 pl-4">
+                      {importSummary.unreachable.map((s) => (
+                        <li key={s.id}>
+                          <span className="font-mono text-[11px] opacity-70">{s.id}</span>{" "}
+                          — {truncate(s.caller_line, 80) || <em>empty</em>}
+                        </li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <p className="text-muted-foreground">All steps are reachable.</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Changes are autosaved to the current draft. Publish to create a new version.
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <div className="flex flex-1 overflow-hidden">
         <div className="flex-1 bg-parchment">
