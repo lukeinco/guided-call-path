@@ -75,6 +75,7 @@ export type Database = {
           id: string
           org_id: string
           response_label: string | null
+          reviewed_at: string | null
           run_id: string
           section_type: string | null
           step_id: string
@@ -86,6 +87,7 @@ export type Database = {
           id?: string
           org_id: string
           response_label?: string | null
+          reviewed_at?: string | null
           run_id: string
           section_type?: string | null
           step_id: string
@@ -97,6 +99,7 @@ export type Database = {
           id?: string
           org_id?: string
           response_label?: string | null
+          reviewed_at?: string | null
           run_id?: string
           section_type?: string | null
           step_id?: string

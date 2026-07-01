@@ -1,80 +1,187 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { AppShell } from "@/components/AppShell";
+import { Button } from "@/components/ui/button";
+import type { ScriptDefinition, ScriptStep } from "@/lib/script-types";
 
 export const Route = createFileRoute("/signals")({
   ssr: false,
-  component: Signals,
+  component: Gaps,
 });
 
-interface SignalRow {
+interface GapRow {
   id: string;
   created_at: string;
   step_id: string;
+  section_type: string | null;
+  detail: string | null;
+  type: string;
+  reviewed_at: string | null;
   run_id: string;
   call_runs: { caller_id: string; scenario: string; script_id: string } | null;
 }
 
-function Signals() {
+interface ScriptLite {
+  id: string;
+  name: string;
+  definition: ScriptDefinition;
+}
+
+export function Gaps() {
   const auth = useAuth();
   const navigate = useNavigate();
+  const qc = useQueryClient();
+
   useEffect(() => {
     if (auth.loading) return;
     if (!auth.userId) navigate({ to: "/auth", replace: true });
-    else if (auth.role !== "admin") navigate({ to: "/navigator", replace: true });
+    else if (auth.role !== "admin" && auth.role !== "superadmin")
+      navigate({ to: "/navigator", replace: true });
   }, [auth.loading, auth.userId, auth.role, navigate]);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["signals", auth.orgId],
-    enabled: !!auth.orgId && auth.role === "admin",
+  const { data: gaps, isLoading } = useQuery({
+    queryKey: ["gaps", auth.orgId],
+    enabled: !!auth.userId && (auth.role === "admin" || auth.role === "superadmin"),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("events")
-        .select("id, created_at, step_id, run_id, call_runs(caller_id, scenario, script_id)")
-        .eq("type", "off_script")
+        .select(
+          "id, created_at, step_id, section_type, detail, type, reviewed_at, run_id, call_runs(caller_id, scenario, script_id)",
+        )
+        .in("type", ["not_accounted_for", "off_script"])
         .order("created_at", { ascending: false })
-        .limit(100);
+        .limit(200);
       if (error) throw error;
-      return data as unknown as SignalRow[];
+      return data as unknown as GapRow[];
     },
   });
 
-  if (auth.loading || auth.role !== "admin") return null;
+  const scriptIds = useMemo(
+    () => Array.from(new Set((gaps ?? []).map((g) => g.call_runs?.script_id).filter(Boolean) as string[])),
+    [gaps],
+  );
+
+  const { data: scripts } = useQuery({
+    queryKey: ["gaps-scripts", scriptIds.join(",")],
+    enabled: scriptIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("scripts")
+        .select("id, name, definition")
+        .in("id", scriptIds);
+      if (error) throw error;
+      return data as unknown as ScriptLite[];
+    },
+  });
+
+  const stepIndex = useMemo(() => {
+    const m = new Map<string, { script: ScriptLite; step: ScriptStep }>();
+    (scripts ?? []).forEach((sc) => {
+      (sc.definition?.steps ?? []).forEach((st) => m.set(`${sc.id}:${st.id}`, { script: sc, step: st }));
+    });
+    return m;
+  }, [scripts]);
+
+  async function markReviewed(id: string) {
+    const { error } = await supabase
+      .from("events")
+      .update({ reviewed_at: new Date().toISOString() })
+      .eq("id", id);
+    if (!error) {
+      qc.invalidateQueries({ queryKey: ["gaps"] });
+      qc.invalidateQueries({ queryKey: ["gap-count"] });
+    }
+  }
+
+  if (auth.loading || (auth.role !== "admin" && auth.role !== "superadmin")) return null;
 
   return (
-    <AppShell title="Off-script signals">
+    <AppShell title="Gaps inbox">
       <div className="mx-auto max-w-[1100px] px-6 py-12">
-        <h1 className="font-serif text-4xl">Signals</h1>
-        <p className="mt-1 text-xs text-muted-foreground">Last 100 off-script moments across your org.</p>
+        <h1 className="font-serif text-4xl">Gaps</h1>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Moments where the prospect said something the script didn't account for.
+          Each one is a chance to add a response and cover that branch next time.
+        </p>
 
-        <table className="mt-8 w-full text-sm">
-          <thead>
-            <tr className="border-b border-hairline text-left text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-              <th className="py-2 font-normal">When</th>
-              <th className="py-2 font-normal">Scenario</th>
-              <th className="py-2 font-normal">Step</th>
-              <th className="py-2 font-normal">Caller</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading && <tr><td colSpan={4} className="py-4 text-muted-foreground">Loading…</td></tr>}
-            {!isLoading && (data?.length ?? 0) === 0 && (
-              <tr><td colSpan={4} className="py-4 text-muted-foreground">No off-script moments yet.</td></tr>
-            )}
-            {data?.map((r) => (
-              <tr key={r.id} className="border-b border-hairline/60">
-                <td className="py-3 text-muted-foreground">{new Date(r.created_at).toLocaleString()}</td>
-                <td className="py-3">{r.call_runs?.scenario ?? "—"}</td>
-                <td className="py-3 font-mono text-xs">{r.step_id}</td>
-                <td className="py-3 font-mono text-xs text-muted-foreground">{r.call_runs?.caller_id?.slice(0, 8) ?? "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="mt-8 space-y-3">
+          {isLoading && <p className="text-xs text-muted-foreground">Loading…</p>}
+          {!isLoading && (gaps?.length ?? 0) === 0 && (
+            <p className="text-xs text-muted-foreground">No gaps yet — the script has held up.</p>
+          )}
+          {gaps?.map((g) => {
+            const scriptId = g.call_runs?.script_id ?? null;
+            const key = scriptId ? `${scriptId}:${g.step_id}` : null;
+            const found = key ? stepIndex.get(key) : null;
+            const callerLine = found?.step.caller_line ?? "(step no longer in script)";
+            const section = g.section_type ?? found?.step.section_type ?? null;
+            const isNew = !g.reviewed_at;
+            return (
+              <div
+                key={g.id}
+                className={`border border-hairline p-4 ${isNew ? "bg-parchment/40" : "bg-background"}`}
+              >
+                <div className="flex items-start justify-between gap-6">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                      <span>{new Date(g.created_at).toLocaleString()}</span>
+                      {section && (
+                        <>
+                          <span className="text-hairline">·</span>
+                          <span>{section.replace(/_/g, " ")}</span>
+                        </>
+                      )}
+                      {g.type === "off_script" && (
+                        <>
+                          <span className="text-hairline">·</span>
+                          <span>legacy</span>
+                        </>
+                      )}
+                      {isNew && <span className="ml-1 h-1.5 w-1.5 rounded-full bg-iron" />}
+                    </div>
+                    <p className="mt-2 font-serif text-lg leading-snug">{callerLine}</p>
+                    {g.detail && (
+                      <p className="mt-2 text-sm">
+                        <span className="text-muted-foreground">They said: </span>
+                        <span className="italic">"{g.detail}"</span>
+                      </p>
+                    )}
+                    <p className="mt-2 font-mono text-[10px] text-muted-foreground">
+                      caller {g.call_runs?.caller_id?.slice(0, 8) ?? "—"}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    {scriptId && found && (
+                      <Link
+                        to="/editor/$scriptId"
+                        params={{ scriptId }}
+                        search={{ openStep: g.step_id, addResponse: 1 }}
+                      >
+                        <Button size="sm" variant="outline">
+                          Add response to this step
+                        </Button>
+                      </Link>
+                    )}
+                    {isNew && (
+                      <button
+                        onClick={() => markReviewed(g.id)}
+                        className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
+                      >
+                        Mark reviewed
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </AppShell>
   );
 }
+
+export default Gaps;
